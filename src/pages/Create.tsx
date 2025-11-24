@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { FiltersDialog, EffectsDialog } from "@/components/video-editor/FiltersDialog";
+import { TextOverlayDialog } from "@/components/video-editor/TextOverlayDialog";
+import { MusicDialog } from "@/components/video-editor/MusicDialog";
+import { TrimDialog } from "@/components/video-editor/TrimDialog";
 import { 
   X, 
   Music, 
@@ -18,7 +22,9 @@ import {
   Plus,
   Timer,
   Sparkles,
-  Layers
+  Layers,
+  Image as ImageIcon,
+  Type
 } from "lucide-react";
 
 const Create = () => {
@@ -27,7 +33,22 @@ const Create = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentFilter, setCurrentFilter] = useState({ name: "Normal", css: "none" });
+  const [effects, setEffects] = useState({ brightness: 100, contrast: 100, saturation: 100 });
+  const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const [musicVolume, setMusicVolume] = useState(1);
+  const [textOverlays, setTextOverlays] = useState<any[]>([]);
+  
+  // Dialog states
+  const [showFilters, setShowFilters] = useState(false);
+  const [showEffects, setShowEffects] = useState(false);
+  const [showMusic, setShowMusic] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const [showTrim, setShowTrim] = useState(false);
+  
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const generateThumbnail = (videoFile: File): Promise<string> => {
@@ -162,9 +183,31 @@ const Create = () => {
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+    toast.success("Image loaded! Add filters and effects");
+  };
+
+  const getVideoStyle = () => {
+    const filterStr = currentFilter.css !== "none" ? currentFilter.css : "";
+    const effectsStr = `brightness(${effects.brightness}%) contrast(${effects.contrast}%) saturate(${effects.saturation}%)`;
+    return {
+      filter: `${filterStr} ${effectsStr}`.trim(),
+    };
+  };
+
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-black">
-      {/* Hidden video input */}
+      {/* Hidden inputs */}
       <input
         ref={videoInputRef}
         type="file"
@@ -172,18 +215,74 @@ const Create = () => {
         onChange={handleVideoUpload}
         className="hidden"
       />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
 
       {/* Camera View Background */}
       <div className="absolute inset-0 z-0">
         {videoPreview ? (
-          <video
-            ref={videoRef}
-            src={videoPreview}
-            className="h-full w-full object-cover"
-            autoPlay
-            loop
-            muted
-          />
+          <div className="relative h-full w-full">
+            <video
+              ref={videoRef}
+              src={videoPreview}
+              className="h-full w-full object-cover"
+              style={getVideoStyle()}
+              autoPlay
+              loop
+              muted
+            />
+            {/* Text Overlays */}
+            {textOverlays.map((overlay, index) => (
+              <div
+                key={index}
+                style={{
+                  position: "absolute",
+                  left: `${overlay.x}%`,
+                  top: `${overlay.y}%`,
+                  fontSize: `${overlay.fontSize}px`,
+                  color: overlay.color,
+                  fontWeight: "bold",
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+                  pointerEvents: "none",
+                }}
+              >
+                {overlay.text}
+              </div>
+            ))}
+          </div>
+        ) : imagePreview ? (
+          <div
+            className="h-full w-full bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${imagePreview})`,
+              filter: `${currentFilter.css !== "none" ? currentFilter.css : ""} brightness(${effects.brightness}%) contrast(${effects.contrast}%) saturate(${effects.saturation}%)`,
+            }}
+          >
+            <div className="absolute inset-0 bg-black/10" />
+            {/* Text Overlays */}
+            {textOverlays.map((overlay, index) => (
+              <div
+                key={index}
+                style={{
+                  position: "absolute",
+                  left: `${overlay.x}%`,
+                  top: `${overlay.y}%`,
+                  fontSize: `${overlay.fontSize}px`,
+                  color: overlay.color,
+                  fontWeight: "bold",
+                  textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+                  pointerEvents: "none",
+                }}
+              >
+                {overlay.text}
+              </div>
+            ))}
+          </div>
         ) : (
           <div
             className="h-full w-full bg-cover bg-center"
@@ -211,9 +310,12 @@ const Create = () => {
         {/* Top Bar */}
         <div className="flex flex-col gap-4 p-4">
           <div className="flex items-center justify-between text-white">
-            <button className="flex items-center gap-2 rounded-xl h-10 px-4 glass text-white text-sm font-medium hover:bg-white/30 transition-smooth">
+            <button
+              onClick={() => setShowMusic(true)}
+              className="flex items-center gap-2 rounded-xl h-10 px-4 glass text-white text-sm font-medium hover:bg-white/30 transition-smooth"
+            >
               <Music className="w-4 h-4" />
-              <span>Add Music</span>
+              <span>{musicUrl ? "Music Added" : "Add Music"}</span>
             </button>
             <div className="flex items-center gap-1 rounded-full glass p-1">
               <button className="flex size-8 items-center justify-center rounded-full hover:bg-white/20 transition-smooth">
@@ -238,21 +340,41 @@ const Create = () => {
         {/* Right-Side Toolbar */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl glass p-2 text-white">
-            <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
+            <button
+              onClick={() => setShowFilters(true)}
+              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+            >
               <Camera className="w-6 h-6" />
               <span className="text-xs font-medium">Filters</span>
             </button>
-            <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
+            <button
+              onClick={() => setShowEffects(true)}
+              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+            >
               <Sparkles className="w-6 h-6" />
               <span className="text-xs font-medium">Effects</span>
             </button>
-            <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
-              <RotateCcw className="w-6 h-6" />
-              <span className="text-xs font-medium">Remix</span>
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+            >
+              <ImageIcon className="w-6 h-6" />
+              <span className="text-xs font-medium">Image</span>
             </button>
-            <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
+            <button
+              onClick={() => setShowText(true)}
+              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+            >
+              <Type className="w-6 h-6" />
+              <span className="text-xs font-medium">Text</span>
+            </button>
+            <button
+              onClick={() => setShowTrim(true)}
+              disabled={!videoPreview}
+              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth disabled:opacity-50"
+            >
               <Layers className="w-6 h-6" />
-              <span className="text-xs font-medium">Templates</span>
+              <span className="text-xs font-medium">Trim</span>
             </button>
             <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
               <Timer className="w-6 h-6" />
@@ -367,6 +489,46 @@ const Create = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialogs */}
+      <FiltersDialog
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        onSelectFilter={setCurrentFilter}
+        currentFilter={currentFilter}
+      />
+      <EffectsDialog
+        isOpen={showEffects}
+        onClose={() => setShowEffects(false)}
+        onApplyEffect={setEffects}
+      />
+      <MusicDialog
+        isOpen={showMusic}
+        onClose={() => setShowMusic(false)}
+        onSelectMusic={(url, volume) => {
+          setMusicUrl(url);
+          setMusicVolume(volume);
+          toast.success("Music added!");
+        }}
+      />
+      <TextOverlayDialog
+        isOpen={showText}
+        onClose={() => setShowText(false)}
+        onAddText={(overlay) => {
+          setTextOverlays((prev) => [...prev, { id: Date.now().toString(), ...overlay }]);
+          toast.success("Text added!");
+        }}
+      />
+      {videoPreview && videoRef.current && (
+        <TrimDialog
+          isOpen={showTrim}
+          onClose={() => setShowTrim(false)}
+          duration={videoRef.current.duration || 0}
+          onTrim={(start, end) => {
+            toast.success(`Video trimmed: ${start.toFixed(1)}s - ${end.toFixed(1)}s`);
+          }}
+        />
+      )}
     </div>
   );
 };
