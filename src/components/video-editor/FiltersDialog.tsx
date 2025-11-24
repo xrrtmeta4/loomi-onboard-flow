@@ -17,6 +17,14 @@ const FILTERS: Filter[] = [
   { name: "Vibrant", css: "saturate(2) contrast(1.2)" },
   { name: "Fade", css: "opacity(0.8) brightness(1.2)" },
   { name: "Sharp", css: "contrast(1.5) brightness(0.9)" },
+  { name: "Sunset", css: "sepia(0.3) saturate(1.4) hue-rotate(-10deg)" },
+  { name: "Arctic", css: "hue-rotate(200deg) saturate(1.3) brightness(1.1)" },
+  { name: "Noir", css: "grayscale(1) contrast(1.8) brightness(0.9)" },
+  { name: "Dream", css: "saturate(1.5) brightness(1.1) blur(0.5px)" },
+  { name: "Neon", css: "saturate(2.5) contrast(1.3) brightness(1.2)" },
+  { name: "Retro", css: "sepia(0.4) saturate(1.6) hue-rotate(-30deg)" },
+  { name: "Pastel", css: "saturate(0.6) brightness(1.3) contrast(0.9)" },
+  { name: "Cinematic", css: "saturate(0.8) contrast(1.2) brightness(0.95)" },
 ];
 
 interface FiltersDialogProps {

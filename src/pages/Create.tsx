@@ -12,6 +12,8 @@ import { GifsDialog } from "@/components/video-editor/GifsDialog";
 import { SpeedDialog } from "@/components/video-editor/SpeedDialog";
 import { TransitionsDialog } from "@/components/video-editor/TransitionsDialog";
 import { GreenScreenDialog } from "@/components/video-editor/GreenScreenDialog";
+import { CameraRecorder } from "@/components/video-editor/CameraRecorder";
+import { TimelineEditor } from "@/components/video-editor/TimelineEditor";
 import { 
   X, 
   Music, 
@@ -34,7 +36,8 @@ import {
   Film,
   Gauge,
   Shuffle,
-  Scissors
+  Scissors,
+  Clock
 } from "lucide-react";
 
 const Create = () => {
@@ -67,6 +70,8 @@ const Create = () => {
   const [showSpeed, setShowSpeed] = useState(false);
   const [showTransitions, setShowTransitions] = useState(false);
   const [showGreenScreen, setShowGreenScreen] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   
   const videoInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -117,12 +122,17 @@ const Create = () => {
       return;
     }
 
-    // Check file size (max 100MB)
+    // Check file size (max 100MB for mobile optimization)
     const maxSize = 100 * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error("Video file size must be less than 100MB");
+      toast.error("Video file size must be less than 100MB for optimal mobile performance");
       return;
     }
+
+    await processAndUploadVideo(file);
+  };
+
+  const processAndUploadVideo = async (file: File | Blob) => {
 
     setUploading(true);
     setUploadProgress(0);
@@ -136,29 +146,44 @@ const Create = () => {
         return;
       }
 
+      // Convert Blob to File if needed for thumbnail generation
+      const videoFile = file instanceof File ? file : new File([file], `recording_${Date.now()}.webm`, { type: file.type });
+      
       // Generate thumbnail
       setUploadProgress(10);
-      const thumbnailDataUrl = await generateThumbnail(file);
+      toast("Generating thumbnail...");
+      const thumbnailDataUrl = await generateThumbnail(videoFile);
       const thumbnailBlob = await (await fetch(thumbnailDataUrl)).blob();
 
-      // Upload video
+      // Upload video with progress tracking
       setUploadProgress(20);
-      const videoFileName = `${user.id}/${Date.now()}_${file.name}`;
+      toast("Uploading video...");
+      const videoFileName = `${user.id}/${Date.now()}_video.mp4`;
       
-      // Simulate progress for video upload
+      // Simulate smooth progress
       const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 5, 75));
-      }, 200);
+        setUploadProgress((prev) => {
+          if (prev >= 70) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 2;
+        });
+      }, 100);
 
       const { data: videoData, error: videoError } = await supabase.storage
         .from("videos")
-        .upload(videoFileName, file);
+        .upload(videoFileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
       clearInterval(progressInterval);
       if (videoError) throw videoError;
 
       // Upload thumbnail
-      setUploadProgress(80);
+      setUploadProgress(75);
+      toast("Uploading thumbnail...");
       const thumbnailFileName = `${user.id}/${Date.now()}_thumbnail.jpg`;
       const { data: thumbnailData, error: thumbnailError } = await supabase.storage
         .from("videos")
@@ -177,6 +202,7 @@ const Create = () => {
 
       // Create video record
       setUploadProgress(90);
+      toast("Saving video details...");
       const { error: dbError } = await supabase.from("videos").insert({
         user_id: user.id,
         video_url: videoUrl,
@@ -194,14 +220,19 @@ const Create = () => {
 
       setTimeout(() => {
         navigate("/feed");
-      }, 1000);
+      }, 1500);
     } catch (error: any) {
       console.error("Upload error:", error);
       toast.error(error.message || "Failed to upload video");
     } finally {
       setUploading(false);
-      setUploadProgress(0);
+      setTimeout(() => setUploadProgress(0), 500);
     }
+  };
+
+  const handleRecordingComplete = async (blob: Blob) => {
+    toast.success("Recording complete! Processing...");
+    await processAndUploadVideo(blob);
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -425,6 +456,21 @@ const Create = () => {
               <Scissors className="w-5 h-5" />
               <span className="text-[10px] font-medium">Trim</span>
             </button>
+            <button
+              onClick={() => setShowTimeline(true)}
+              disabled={!videoPreview}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth disabled:opacity-50"
+            >
+              <Clock className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Timeline</span>
+            </button>
+            <button 
+              onClick={() => setShowCamera(true)}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
+            >
+              <Camera className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Record</span>
+            </button>
             <button className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth">
               <Timer className="w-5 h-5" />
               <span className="text-[10px] font-medium">Timer</span>
@@ -621,6 +667,19 @@ const Create = () => {
           toast.success("Green screen effect applied!");
         }}
       />
+      <CameraRecorder
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onRecordingComplete={handleRecordingComplete}
+      />
+      {videoPreview && videoRef.current && (
+        <TimelineEditor
+          isOpen={showTimeline}
+          onClose={() => setShowTimeline(false)}
+          duration={videoRef.current.duration || 0}
+          videoRef={videoRef}
+        />
+      )}
     </div>
   );
 };
