@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CommentModal } from "@/components/CommentModal";
 import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music } from "lucide-react";
 
 interface Video {
@@ -27,6 +28,8 @@ const Feed = () => {
   const [loading, setLoading] = useState(true);
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [user, setUser] = useState<any>(null);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -173,6 +176,11 @@ const Feed = () => {
     }
   }, [currentVideoIndex, videos]);
 
+  const handleOpenComments = (videoId: string) => {
+    setSelectedVideoId(videoId);
+    setCommentModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-sm min-h-screen bg-black flex items-center justify-center">
@@ -288,7 +296,10 @@ const Feed = () => {
 
                 {/* Comment */}
                 <div className="flex flex-col items-center gap-1 text-center text-white">
-                  <button className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth">
+                  <button
+                    onClick={() => handleOpenComments(video.id)}
+                    className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
                     <MessageCircle className="w-7 h-7" />
                   </button>
                   <p className="text-xs font-semibold leading-normal">
@@ -370,6 +381,15 @@ const Feed = () => {
           <p className="text-xs font-medium">Profile</p>
         </button>
       </nav>
+
+      {/* Comment Modal */}
+      {selectedVideoId && (
+        <CommentModal
+          videoId={selectedVideoId}
+          isOpen={commentModalOpen}
+          onClose={() => setCommentModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
