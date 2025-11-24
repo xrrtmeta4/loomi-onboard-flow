@@ -1,8 +1,63 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { Mail, Lock, User as UserIcon } from "lucide-react";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const [isSignUp, setIsSignUp] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    username: "",
+    display_name: "",
+  });
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              username: formData.username,
+              display_name: formData.display_name,
+            },
+            emailRedirectTo: `${window.location.origin}/feed`,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          toast.success("Account created! Redirecting...");
+          navigate("/feed");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) throw error;
+
+        toast.success("Logged in successfully!");
+        navigate("/feed");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center bg-background p-4">
@@ -46,49 +101,84 @@ const Onboarding = () => {
           Your community is waiting.
         </h2>
 
-        {/* Social Login Buttons */}
-        <div className="flex w-full flex-col items-stretch gap-3">
-          <Button variant="glass" className="h-14">
-            <img
-              alt="Google logo"
-              className="w-6 h-6 mr-3"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuA9T9UJ3K3vJRLUIPcc1JmBNS_qcbpDVizFqdNMptXEqbvbNcTVDMYlo7p0Fxn6IzIajLm67D8-D1SPORQ1zzOiPFNyhKdhpsiChbJDbGgngjKdioyqISv0NkGjg2TbierQWj8LikJGZYozUywYoRMc22XlviM5ufxHViLDmADk4chn90bbU5r3BONkvsfMrywiE7qrArY-YW9UYBIMkMaKiyySMr12RJdrPZq0Y8Q6sDjf47fuoLLGMeUoHRBZwPRlg99CU09J3GM"
+        {/* Auth Form */}
+        <form onSubmit={handleAuth} className="w-full space-y-4">
+          {isSignUp && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <UserIcon className="w-4 h-4" />
+                  Username
+                </label>
+                <Input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  placeholder="johndoe"
+                  required={isSignUp}
+                  className="h-12"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <UserIcon className="w-4 h-4" />
+                  Display Name
+                </label>
+                <Input
+                  type="text"
+                  value={formData.display_name}
+                  onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                  placeholder="John Doe"
+                  required={isSignUp}
+                  className="h-12"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              Email
+            </label>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="you@example.com"
+              required
+              className="h-12"
             />
-            <span className="truncate">Continue with Google</span>
-          </Button>
-          
-          <Button variant="glass" className="h-14">
-            <img
-              alt="Apple logo"
-              className="w-6 h-6 mr-3 dark:invert"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUCYBkm3OsnEjLxISQlOJVCy92am-vAaGekx0Ny0yixWGd62TB9b3pqnYss1xE1cKtHMN3d20phb-A7XCJ7AlwM2O6ekUi9vkaGK3SbK0qn3GkjcC30_FazD-trFdy5eqAkZf967A3OSacnc5KCai_TbPKkgubtHPJ9rXw9VqWACwBUb1KEfLAAu-CL7S2zCrxxr-o6CNGRZNIZNuGYa0aN8WJC3kFfly6TeAFZJL8Z1u5GQM1pCp6dBMAOoCCBWgrn4jXL4I7KoI"
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Password
+            </label>
+            <Input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              className="h-12"
             />
-            <span className="truncate">Continue with Apple</span>
+          </div>
+
+          <Button type="submit" variant="primary-purple" className="w-full h-14" disabled={loading}>
+            {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
           </Button>
-        </div>
+        </form>
 
-        {/* Divider */}
-        <div className="flex items-center w-full my-6">
-          <div className="flex-grow border-t border-border" />
-          <span className="mx-4 flex-shrink text-sm text-muted-foreground">or</span>
-          <div className="flex-grow border-t border-border" />
-        </div>
-
-        {/* Email Sign Up */}
-        <div className="flex w-full flex-col items-stretch gap-3">
-          <Button 
-            variant="primary-purple" 
-            className="h-14"
-            onClick={() => navigate("/topics")}
-          >
-            <span className="truncate">Sign up with Email</span>
-          </Button>
-        </div>
-
-        {/* Login Link */}
-        <p className="text-muted-foreground text-sm font-normal leading-normal pt-8 underline cursor-pointer hover:text-foreground transition-smooth">
-          Already have an account? Log in
-        </p>
+        {/* Toggle Login/Signup */}
+        <button
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="text-muted-foreground text-sm font-normal leading-normal pt-8 underline cursor-pointer hover:text-foreground transition-smooth"
+        >
+          {isSignUp ? "Already have an account? Log in" : "Don't have an account? Sign up"}
+        </button>
 
         {/* Legal */}
         <p className="text-muted-foreground text-xs font-normal leading-normal pt-12 max-w-xs">

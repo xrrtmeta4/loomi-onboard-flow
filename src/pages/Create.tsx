@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 import { 
   X, 
   Music, 
@@ -21,20 +24,188 @@ import {
 const Create = () => {
   const navigate = useNavigate();
   const [selectedDuration, setSelectedDuration] = useState("15s");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const generateThumbnail = (videoFile: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+
+      video.onloadeddata = () => {
+        video.currentTime = 1; // Seek to 1 second
+      };
+
+      video.onseeked = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            } else {
+              reject(new Error("Failed to generate thumbnail"));
+            }
+          }, "image/jpeg", 0.8);
+        }
+      };
+
+      video.onerror = () => reject(new Error("Failed to load video"));
+      video.src = URL.createObjectURL(videoFile);
+    });
+  };
+
+  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please select a valid video file");
+      return;
+    }
+
+    // Check file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Video file size must be less than 100MB");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please sign in to upload videos");
+        navigate("/");
+        return;
+      }
+
+      // Generate thumbnail
+      setUploadProgress(10);
+      const thumbnailDataUrl = await generateThumbnail(file);
+      const thumbnailBlob = await (await fetch(thumbnailDataUrl)).blob();
+
+      // Upload video
+      setUploadProgress(20);
+      const videoFileName = `${user.id}/${Date.now()}_${file.name}`;
+      
+      // Simulate progress for video upload
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 5, 75));
+      }, 200);
+
+      const { data: videoData, error: videoError } = await supabase.storage
+        .from("videos")
+        .upload(videoFileName, file);
+
+      clearInterval(progressInterval);
+      if (videoError) throw videoError;
+
+      // Upload thumbnail
+      setUploadProgress(80);
+      const thumbnailFileName = `${user.id}/${Date.now()}_thumbnail.jpg`;
+      const { data: thumbnailData, error: thumbnailError } = await supabase.storage
+        .from("videos")
+        .upload(thumbnailFileName, thumbnailBlob);
+
+      if (thumbnailError) throw thumbnailError;
+
+      // Get public URLs
+      const { data: { publicUrl: videoUrl } } = supabase.storage
+        .from("videos")
+        .getPublicUrl(videoData.path);
+
+      const { data: { publicUrl: thumbnailUrl } } = supabase.storage
+        .from("videos")
+        .getPublicUrl(thumbnailData.path);
+
+      // Create video record
+      setUploadProgress(90);
+      const { error: dbError } = await supabase.from("videos").insert({
+        user_id: user.id,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        duration: selectedDuration === "15s" ? 15 : selectedDuration === "60s" ? 60 : 0,
+      });
+
+      if (dbError) throw dbError;
+
+      setUploadProgress(100);
+      toast.success("Video uploaded successfully!");
+      
+      // Preview the video
+      setVideoPreview(URL.createObjectURL(file));
+
+      setTimeout(() => {
+        navigate("/feed");
+      }, 1000);
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Failed to upload video");
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   return (
     <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-hidden bg-black">
+      {/* Hidden video input */}
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        onChange={handleVideoUpload}
+        className="hidden"
+      />
+
       {/* Camera View Background */}
       <div className="absolute inset-0 z-0">
-        <div
-          className="h-full w-full bg-cover bg-center"
-          style={{
-            backgroundImage: 'url("https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600&h=1200&fit=crop")',
-          }}
-        >
-          <div className="absolute inset-0 bg-black/10" />
-        </div>
+        {videoPreview ? (
+          <video
+            ref={videoRef}
+            src={videoPreview}
+            className="h-full w-full object-cover"
+            autoPlay
+            loop
+            muted
+          />
+        ) : (
+          <div
+            className="h-full w-full bg-cover bg-center"
+            style={{
+              backgroundImage: 'url("https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=600&h=1200&fit=crop")',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/10" />
+          </div>
+        )}
       </div>
+
+      {/* Upload Progress Overlay */}
+      {uploading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+          <div className="w-3/4 space-y-4 text-center">
+            <p className="text-white text-lg font-semibold">Uploading video...</p>
+            <Progress value={uploadProgress} className="h-2" />
+            <p className="text-white/80 text-sm">{uploadProgress}%</p>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 flex h-screen flex-col justify-between">
         {/* Top Bar */}
@@ -102,12 +273,19 @@ const Create = () => {
 
           {/* Camera Control */}
           <div className="relative flex items-center justify-center gap-8">
-            <button className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-white hover:text-primary transition-smooth">
+            <button 
+              onClick={() => videoInputRef.current?.click()}
+              disabled={uploading}
+              className="flex shrink-0 flex-col items-center justify-center gap-1.5 text-white hover:text-primary transition-smooth disabled:opacity-50"
+            >
               <div className="flex h-12 w-12 items-center justify-center rounded-lg glass">
                 <Upload className="w-6 h-6" />
               </div>
             </button>
-            <button className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-4 border-white bg-transparent p-1 hover:border-primary-purple transition-smooth">
+            <button 
+              disabled={uploading}
+              className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-4 border-white bg-transparent p-1 hover:border-primary-purple transition-smooth disabled:opacity-50"
+            >
               <div className="h-full w-full rounded-full bg-primary-purple" />
             </button>
             <button 
@@ -124,7 +302,8 @@ const Create = () => {
           <div className="flex items-center justify-center gap-6 py-2 text-sm font-semibold">
             <button
               onClick={() => setSelectedDuration("15s")}
-              className={`transition-smooth ${
+              disabled={uploading}
+              className={`transition-smooth disabled:opacity-50 ${
                 selectedDuration === "15s" ? "text-white" : "text-white/60 hover:text-white"
               }`}
             >
@@ -132,7 +311,8 @@ const Create = () => {
             </button>
             <button
               onClick={() => setSelectedDuration("60s")}
-              className={`transition-smooth ${
+              disabled={uploading}
+              className={`transition-smooth disabled:opacity-50 ${
                 selectedDuration === "60s" ? "text-white" : "text-white/60 hover:text-white"
               }`}
             >
@@ -140,7 +320,8 @@ const Create = () => {
             </button>
             <button
               onClick={() => setSelectedDuration("chain")}
-              className={`transition-smooth ${
+              disabled={uploading}
+              className={`transition-smooth disabled:opacity-50 ${
                 selectedDuration === "chain" ? "text-white" : "text-white/60 hover:text-white"
               }`}
             >
