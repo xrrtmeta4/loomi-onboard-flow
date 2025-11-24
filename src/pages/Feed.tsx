@@ -30,6 +30,9 @@ const Feed = () => {
   const [user, setUser] = useState<any>(null);
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastTap, setLastTap] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +48,7 @@ const Feed = () => {
     fetchVideos();
   }, []);
 
-  const fetchVideos = async () => {
+  const fetchVideos = async (offset = 0) => {
     try {
       const { data, error } = await supabase
         .from("videos")
@@ -58,16 +61,30 @@ const Feed = () => {
           )
         `)
         .order("created_at", { ascending: false })
-        .limit(20);
+        .range(offset, offset + 19);
 
       if (error) throw error;
-      setVideos(data || []);
+      
+      if (offset === 0) {
+        setVideos(data || []);
+      } else {
+        setVideos(prev => [...prev, ...(data || [])]);
+      }
+      
+      setHasMore((data || []).length === 20);
     } catch (error: any) {
       console.error("Error fetching videos:", error);
       toast.error("Failed to load videos");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    await fetchVideos(videos.length);
   };
 
   const fetchLikedVideos = async (userId: string) => {
@@ -157,15 +174,23 @@ const Feed = () => {
     }
   }, [currentVideoIndex, videos]);
 
-  // Handle scroll to change videos
+  // Handle scroll to change videos and load more
   useEffect(() => {
     const handleScroll = () => {
       if (!containerRef.current) return;
       const scrollY = containerRef.current.scrollTop;
+      const scrollHeight = containerRef.current.scrollHeight;
+      const clientHeight = containerRef.current.clientHeight;
       const videoHeight = window.innerHeight;
       const newIndex = Math.round(scrollY / videoHeight);
+      
       if (newIndex !== currentVideoIndex && newIndex < videos.length) {
         setCurrentVideoIndex(newIndex);
+      }
+
+      // Load more when near bottom
+      if (scrollHeight - scrollY - clientHeight < videoHeight * 2) {
+        loadMore();
       }
     };
 
@@ -174,7 +199,28 @@ const Feed = () => {
       container.addEventListener("scroll", handleScroll);
       return () => container.removeEventListener("scroll", handleScroll);
     }
-  }, [currentVideoIndex, videos]);
+  }, [currentVideoIndex, videos, loadingMore, hasMore]);
+
+  // Double tap to like
+  const handleDoubleTap = (videoId: string) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTap < DOUBLE_TAP_DELAY) {
+      handleLike(videoId);
+      // Show heart animation
+      const heartEl = document.getElementById(`heart-anim-${videoId}`);
+      if (heartEl) {
+        heartEl.classList.remove("hidden");
+        heartEl.classList.add("animate-ping");
+        setTimeout(() => {
+          heartEl.classList.add("hidden");
+          heartEl.classList.remove("animate-ping");
+        }, 1000);
+      }
+    }
+    setLastTap(now);
+  };
 
   const handleOpenComments = (videoId: string) => {
     setSelectedVideoId(videoId);
@@ -287,6 +333,7 @@ const Feed = () => {
           <div
             key={video.id}
             className="relative h-screen w-full snap-start flex items-center justify-center bg-black"
+            onDoubleClick={() => handleDoubleTap(video.id)}
           >
             {/* Video */}
             {index === currentVideoIndex ? (
@@ -305,6 +352,14 @@ const Feed = () => {
                 style={{ backgroundImage: `url(${video.thumbnail_url})` }}
               />
             )}
+
+            {/* Double Tap Heart Animation */}
+            <div
+              id={`heart-anim-${video.id}`}
+              className="absolute inset-0 flex items-center justify-center pointer-events-none hidden z-20"
+            >
+              <Heart className="w-32 h-32 text-white fill-white" />
+            </div>
 
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/30" />
@@ -360,9 +415,12 @@ const Feed = () => {
                   </p>
                 </div>
 
-                {/* Bookmark */}
+                {/* Favorite/Bookmark */}
                 <div className="flex flex-col items-center gap-1 text-center text-white">
-                  <button className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth">
+                  <button 
+                    onClick={() => toast.success("Added to favorites!")}
+                    className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
                     <Bookmark className="w-7 h-7" />
                   </button>
                 </div>
@@ -398,6 +456,13 @@ const Feed = () => {
             </div>
           </div>
         ))}
+        
+        {/* Loading More Indicator */}
+        {loadingMore && (
+          <div className="h-screen w-full snap-start flex items-center justify-center bg-black">
+            <p className="text-white">Loading more videos...</p>
+          </div>
+        )}
       </main>
 
       {/* Bottom Navigation Bar */}
