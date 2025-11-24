@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft, Upload, Camera, Trash2 } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft, Upload, Camera, Trash2, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -293,32 +293,53 @@ const Profile = () => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
     setUploading(true);
 
     try {
       const fileExt = file.name.split('.').pop();
       const filePath = `${user.id}/avatar.${fileExt}`;
 
+      // Delete old avatar if exists
+      const { data: existingFiles } = await supabase.storage
+        .from('avatars')
+        .list(user.id);
+
+      if (existingFiles && existingFiles.length > 0) {
+        await supabase.storage
+          .from('avatars')
+          .remove([`${user.id}/${existingFiles[0].name}`]);
+      }
+
+      // Upload new avatar
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
+      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: data.publicUrl })
+        .update({ avatar_url: publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      toast.success("Avatar updated!");
-      getProfile(user.id);
+      setFormData({ ...formData, avatar_url: publicUrl });
+      toast.success("Avatar updated successfully!");
+      await getProfile(user.id);
     } catch (error: any) {
+      console.error('Avatar upload error:', error);
       toast.error(error.message || "Failed to upload avatar");
     } finally {
       setUploading(false);
@@ -427,7 +448,12 @@ const Profile = () => {
           ) : (
             <>
               <div className="text-center">
-                <h2 className="text-xl font-bold text-foreground">{profile?.display_name || "User"}</h2>
+                <div className="flex items-center justify-center gap-1">
+                  <h2 className="text-xl font-bold text-foreground">{profile?.display_name || "User"}</h2>
+                  {profile?.is_verified && (
+                    <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-500" />
+                  )}
+                </div>
                 <p className="text-muted-foreground">@{profile?.username || "username"}</p>
               </div>
 

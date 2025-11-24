@@ -319,6 +319,7 @@ export type Database = {
           follower_count: number | null
           following_count: number | null
           id: string
+          is_verified: boolean | null
           updated_at: string | null
           username: string
         }
@@ -330,6 +331,7 @@ export type Database = {
           follower_count?: number | null
           following_count?: number | null
           id: string
+          is_verified?: boolean | null
           updated_at?: string | null
           username: string
         }
@@ -341,6 +343,7 @@ export type Database = {
           follower_count?: number | null
           following_count?: number | null
           id?: string
+          is_verified?: boolean | null
           updated_at?: string | null
           username?: string
         }

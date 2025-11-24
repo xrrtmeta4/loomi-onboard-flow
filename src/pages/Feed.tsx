@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CommentModal } from "@/components/CommentModal";
 import { FollowButton } from "@/components/FollowButton";
-import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music, Download } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music, Download, BadgeCheck } from "lucide-react";
 
 interface Video {
   id: string;
@@ -19,6 +19,7 @@ interface Video {
     username: string;
     display_name: string | null;
     avatar_url: string | null;
+    is_verified: boolean | null;
   };
 }
 
@@ -58,7 +59,8 @@ const Feed = () => {
           profiles (
             username,
             display_name,
-            avatar_url
+            avatar_url,
+            is_verified
           )
         `)
         .order("created_at", { ascending: false })
@@ -527,9 +529,14 @@ const Feed = () => {
 
               {/* Bottom Content Info */}
               <div className="px-4 text-white pb-4">
-                <p className="text-white text-base font-bold leading-normal pb-2">
-                  @{video.profiles.username}
-                </p>
+                <div className="flex items-center gap-1 pb-2">
+                  <p className="text-white text-base font-bold leading-normal">
+                    @{video.profiles.username}
+                  </p>
+                  {video.profiles.is_verified && (
+                    <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500" />
+                  )}
+                </div>
                 <p className="text-white/90 text-sm font-normal leading-normal pb-3">
                   {video.description || video.title || ""}
                 </p>

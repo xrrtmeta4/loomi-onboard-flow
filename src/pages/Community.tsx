@@ -119,20 +119,36 @@ const Community = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("communities")
-      .insert([newCommunity]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to create a community");
+        navigate("/auth");
+        return;
+      }
 
-    if (error) {
+      const { error } = await supabase
+        .from("communities")
+        .insert([{
+          name: newCommunity.name,
+          description: newCommunity.description,
+          avatar_url: newCommunity.avatar_url
+        }]);
+
+      if (error) {
+        console.error('Community creation error:', error);
+        toast.error(`Failed to create community: ${error.message}`);
+        return;
+      }
+
+      toast.success("Community created successfully!");
+      setIsCreateDialogOpen(false);
+      setNewCommunity({ name: "", description: "", avatar_url: "" });
+      fetchCommunities();
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast.error("Failed to create community");
-      console.error(error);
-      return;
     }
-
-    toast.success("Community created successfully!");
-    setIsCreateDialogOpen(false);
-    setNewCommunity({ name: "", description: "", avatar_url: "" });
-    fetchCommunities();
   };
 
   const handleAskQuestion = async () => {
