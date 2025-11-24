@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { FollowButton } from "@/components/FollowButton";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { RecentFollowersCarousel } from "@/components/RecentFollowersCarousel";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -465,6 +466,11 @@ const Profile = () => {
             </>
           )}
         </div>
+
+        {/* Recent Followers Carousel */}
+        {user && !isEditing && (
+          <RecentFollowersCarousel userId={user.id} />
+        )}
 
         {/* Tabs */}
         {!isEditing && (
