@@ -1,10 +1,20 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft, Upload, Camera } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft, Upload, Camera, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { FollowButton } from "@/components/FollowButton";
@@ -17,6 +27,12 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"videos" | "liked">("videos");
+  const [userVideos, setUserVideos] = useState<any[]>([]);
+  const [likedVideos, setLikedVideos] = useState<any[]>([]);
+  const [videosLoading, setVideosLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [videoToDelete, setVideoToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     username: "",
     display_name: "",
@@ -81,6 +97,83 @@ const Profile = () => {
       bio: data.bio || "",
       avatar_url: data.avatar_url || "",
     });
+    fetchUserVideos(userId);
+    fetchLikedVideos(userId);
+  };
+
+  const fetchUserVideos = async (userId: string) => {
+    setVideosLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("videos")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setUserVideos(data || []);
+    } catch (error: any) {
+      console.error("Error fetching user videos:", error);
+      toast.error("Failed to load videos");
+    } finally {
+      setVideosLoading(false);
+    }
+  };
+
+  const fetchLikedVideos = async (userId: string) => {
+    setVideosLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("video_likes")
+        .select(`
+          video_id,
+          videos (
+            id,
+            video_url,
+            thumbnail_url,
+            title,
+            description,
+            like_count,
+            comment_count,
+            created_at,
+            user_id
+          )
+        `)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      const videos = data?.map((item: any) => item.videos).filter(Boolean) || [];
+      setLikedVideos(videos);
+    } catch (error: any) {
+      console.error("Error fetching liked videos:", error);
+      toast.error("Failed to load liked videos");
+    } finally {
+      setVideosLoading(false);
+    }
+  };
+
+  const handleDeleteVideo = async () => {
+    if (!videoToDelete || !user) return;
+
+    try {
+      // Delete video record from database
+      const { error: dbError } = await supabase
+        .from("videos")
+        .delete()
+        .eq("id", videoToDelete)
+        .eq("user_id", user.id);
+
+      if (dbError) throw dbError;
+
+      toast.success("Video deleted successfully");
+      setDeleteDialogOpen(false);
+      setVideoToDelete(null);
+      fetchUserVideos(user.id);
+    } catch (error: any) {
+      console.error("Error deleting video:", error);
+      toast.error("Failed to delete video");
+    }
   };
 
   const handleUpdate = async () => {
@@ -281,27 +374,126 @@ const Profile = () => {
           <>
             <div className="border-b border-border mb-4">
               <div className="flex justify-around">
-                <button className="flex flex-col items-center justify-center border-b-2 border-b-primary text-primary pb-3 pt-2 flex-1">
+                <button
+                  onClick={() => setActiveTab("videos")}
+                  className={`flex flex-col items-center justify-center border-b-2 pb-3 pt-2 flex-1 transition-smooth ${
+                    activeTab === "videos"
+                      ? "border-b-primary text-primary"
+                      : "border-b-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
                   <Grid3X3 className="w-5 h-5 mb-1" />
                   <p className="text-xs font-medium">Videos</p>
                 </button>
-                <button className="flex flex-col items-center justify-center border-b-2 border-b-transparent text-muted-foreground pb-3 pt-2 flex-1 hover:text-foreground transition-smooth">
+                <button
+                  onClick={() => setActiveTab("liked")}
+                  className={`flex flex-col items-center justify-center border-b-2 pb-3 pt-2 flex-1 transition-smooth ${
+                    activeTab === "liked"
+                      ? "border-b-primary text-primary"
+                      : "border-b-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
                   <Heart className="w-5 h-5 mb-1" />
                   <p className="text-xs font-medium">Liked</p>
                 </button>
               </div>
             </div>
 
-            {/* Empty State with Upload */}
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Grid3X3 className="w-16 h-16 text-muted-foreground mb-4" />
-              <p className="text-foreground font-medium">No videos yet</p>
-              <p className="text-muted-foreground text-sm mt-1 mb-4">Start creating to see your videos here</p>
-              <Button onClick={() => navigate("/create")} className="gap-2">
-                <Upload className="w-4 h-4" />
-                Upload Video
-              </Button>
-            </div>
+            {/* Videos Grid */}
+            {videosLoading ? (
+              <div className="flex justify-center py-12">
+                <p className="text-muted-foreground">Loading...</p>
+              </div>
+            ) : (
+              <>
+                {activeTab === "videos" && (
+                  <>
+                    {userVideos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Grid3X3 className="w-16 h-16 text-muted-foreground mb-4" />
+                        <p className="text-foreground font-medium">No videos yet</p>
+                        <p className="text-muted-foreground text-sm mt-1 mb-4">
+                          Start creating to see your videos here
+                        </p>
+                        <Button onClick={() => navigate("/create")} className="gap-2">
+                          <Upload className="w-4 h-4" />
+                          Upload Video
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1">
+                        {userVideos.map((video) => (
+                          <div key={video.id} className="relative aspect-[9/16] group">
+                            <div
+                              className="w-full h-full bg-cover bg-center cursor-pointer"
+                              style={{
+                                backgroundImage: `url(${
+                                  video.thumbnail_url ||
+                                  "https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=700&fit=crop"
+                                })`,
+                              }}
+                              onClick={() => navigate(`/feed`)}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVideoToDelete(video.id);
+                                setDeleteDialogOpen(true);
+                              }}
+                              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-smooth"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+                              <Heart className="w-3 h-3 fill-current" />
+                              <span>{video.like_count || 0}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {activeTab === "liked" && (
+                  <>
+                    {likedVideos.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Heart className="w-16 h-16 text-muted-foreground mb-4" />
+                        <p className="text-foreground font-medium">No liked videos</p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          Videos you like will appear here
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1">
+                        {likedVideos.map((video) => (
+                          <div
+                            key={video.id}
+                            className="relative aspect-[9/16] cursor-pointer"
+                            onClick={() => navigate(`/feed`)}
+                          >
+                            <div
+                              className="w-full h-full bg-cover bg-center"
+                              style={{
+                                backgroundImage: `url(${
+                                  video.thumbnail_url ||
+                                  "https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=700&fit=crop"
+                                })`,
+                              }}
+                            />
+                            <div className="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+                              <Heart className="w-3 h-3 fill-current" />
+                              <span>{video.like_count || 0}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </main>
@@ -342,6 +534,24 @@ const Profile = () => {
           </button>
         </div>
       </nav>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Video</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this video? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setVideoToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteVideo} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
