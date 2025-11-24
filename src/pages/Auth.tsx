@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Mail, Lock, User as UserIcon } from "lucide-react";
+import loomiLogo from "@/assets/loomi-logo.jpg";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -64,13 +65,14 @@ const Auth = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 rounded-full bg-primary-purple flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">L</span>
-            </div>
-            <h1 className="text-4xl font-extrabold text-foreground">Loomi</h1>
+          <div className="inline-flex flex-col items-center justify-center gap-4 mb-4">
+            <img 
+              src={loomiLogo} 
+              alt="Loomi Logo" 
+              className="w-32 h-32 object-contain animate-fade-in"
+            />
           </div>
-          <p className="text-muted-foreground text-lg">Your community is waiting</p>
+          <p className="text-muted-foreground text-lg">Create, share, and discover amazing videos</p>
         </div>
 
         {/* Auth Form */}
