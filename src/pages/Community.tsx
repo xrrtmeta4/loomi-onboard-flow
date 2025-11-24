@@ -1,9 +1,43 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Community = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("feed");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newCommunity, setNewCommunity] = useState({
+    name: "",
+    description: "",
+    avatar_url: "",
+  });
+
+  const handleCreateCommunity = async () => {
+    if (!newCommunity.name.trim()) {
+      toast.error("Community name is required");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("communities")
+      .insert([newCommunity]);
+
+    if (error) {
+      toast.error("Failed to create community");
+      console.error(error);
+      return;
+    }
+
+    toast.success("Community created successfully!");
+    setIsCreateDialogOpen(false);
+    setNewCommunity({ name: "", description: "", avatar_url: "" });
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-background pb-24">
@@ -26,24 +60,94 @@ const Community = () => {
               <p className="text-muted-foreground text-sm font-normal truncate">2.4M Members</p>
             </div>
           </div>
-          <Button variant="secondary" className="h-9 px-4 shrink-0">
-            Joined
-          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="default" className="h-9 px-4 shrink-0">
+                Create
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Community</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-sm font-medium">Community Name</label>
+                  <Input
+                    value={newCommunity.name}
+                    onChange={(e) => setNewCommunity({ ...newCommunity, name: e.target.value })}
+                    placeholder="e.g., Video Editors Hub"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    value={newCommunity.description}
+                    onChange={(e) => setNewCommunity({ ...newCommunity, description: e.target.value })}
+                    placeholder="What's your community about?"
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Avatar URL (optional)</label>
+                  <Input
+                    value={newCommunity.avatar_url}
+                    onChange={(e) => setNewCommunity({ ...newCommunity, avatar_url: e.target.value })}
+                    placeholder="https://..."
+                    className="mt-1"
+                  />
+                </div>
+                <Button onClick={handleCreateCommunity} className="w-full">
+                  Create Community
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-border px-4">
-          <div className="flex gap-6 overflow-x-auto">
-            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-primary pb-3 pt-4 whitespace-nowrap">
+          <div className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-hide">
+            <button 
+              onClick={() => setActiveTab("feed")}
+              className={`flex flex-col items-center justify-center border-b-[3px] pb-3 pt-4 whitespace-nowrap transition-smooth ${
+                activeTab === "feed" 
+                  ? "border-b-primary text-primary" 
+                  : "border-b-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
               <p className="text-sm font-bold leading-normal tracking-[0.015em]">Feed</p>
             </button>
-            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-muted-foreground pb-3 pt-4 hover:text-foreground transition-smooth whitespace-nowrap">
+            <button 
+              onClick={() => setActiveTab("qa")}
+              className={`flex flex-col items-center justify-center border-b-[3px] pb-3 pt-4 whitespace-nowrap transition-smooth ${
+                activeTab === "qa" 
+                  ? "border-b-primary text-primary" 
+                  : "border-b-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
               <p className="text-sm font-bold leading-normal tracking-[0.015em]">Q&A</p>
             </button>
-            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-muted-foreground pb-3 pt-4 hover:text-foreground transition-smooth whitespace-nowrap">
+            <button 
+              onClick={() => setActiveTab("challenges")}
+              className={`flex flex-col items-center justify-center border-b-[3px] pb-3 pt-4 whitespace-nowrap transition-smooth ${
+                activeTab === "challenges" 
+                  ? "border-b-primary text-primary" 
+                  : "border-b-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
               <p className="text-sm font-bold leading-normal tracking-[0.015em]">Challenges</p>
             </button>
-            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-muted-foreground pb-3 pt-4 hover:text-foreground transition-smooth whitespace-nowrap">
+            <button 
+              onClick={() => setActiveTab("info")}
+              className={`flex flex-col items-center justify-center border-b-[3px] pb-3 pt-4 whitespace-nowrap transition-smooth ${
+                activeTab === "info" 
+                  ? "border-b-primary text-primary" 
+                  : "border-b-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
               <p className="text-sm font-bold leading-normal tracking-[0.015em]">Info</p>
             </button>
           </div>
@@ -52,128 +156,58 @@ const Community = () => {
 
       {/* Main Content */}
       <main className="flex-1">
-        {/* Challenge Banner Card */}
-        <div className="p-4">
-          <div className="flex flex-col items-stretch justify-between gap-4 rounded-xl glass-card p-4 shadow-sm border border-border">
-            <div className="flex justify-between items-start gap-3">
-              <div className="flex flex-col gap-1 flex-1 min-w-0">
-                <p className="text-foreground text-base font-bold leading-tight">
-                  This Week: #RetroEdits Challenge
-                </p>
-                <p className="text-muted-foreground text-sm font-normal leading-normal">
-                  Show off your best retro-style video edits and win a prize!
-                </p>
-              </div>
-              <button className="text-muted-foreground hover:text-foreground transition-smooth shrink-0">
-                <X className="w-5 h-5" />
-              </button>
+        {activeTab === "feed" && (
+          <>
+            {/* Empty State */}
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+              <Users className="w-16 h-16 text-muted-foreground mb-4" />
+              <h3 className="text-xl font-bold text-foreground mb-2">No posts yet</h3>
+              <p className="text-muted-foreground max-w-sm">
+                Be the first to share something with this community!
+              </p>
             </div>
-            <div
-              className="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-lg"
-              style={{
-                backgroundImage:
-                  'url("https://images.unsplash.com/photo-1614149162883-504ce0a27a2c?w=600&h=400&fit=crop")',
-              }}
-            />
-            <Button variant="default" className="w-full h-10">
-              View Challenge
-            </Button>
-          </div>
-        </div>
+          </>
+        )}
 
-        {/* Trending Topics */}
-        <h3 className="text-foreground text-lg font-bold leading-tight tracking-tight px-4 pb-2 pt-4">
-          Trending Topics
-        </h3>
-        <div className="flex gap-2 p-4 pt-1 overflow-x-auto">
-          <div className="flex h-8 shrink-0 items-center justify-center gap-x-1.5 rounded-full bg-primary/20 text-primary px-3">
-            <span className="material-symbols-outlined text-base">tag</span>
-            <p className="text-sm font-medium leading-normal">#80sVibes</p>
+        {activeTab === "qa" && (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <MessageCircle className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-bold text-foreground mb-2">Q&A Coming Soon</h3>
+            <p className="text-muted-foreground max-w-sm">
+              Ask questions and get answers from the community
+            </p>
           </div>
-          <div className="flex h-8 shrink-0 items-center justify-center gap-x-1.5 rounded-full bg-secondary text-secondary-foreground px-3 hover:bg-secondary/80 transition-smooth cursor-pointer">
-            <span className="material-symbols-outlined text-base">tag</span>
-            <p className="text-sm font-medium leading-normal">#GlitchArt</p>
-          </div>
-          <div className="flex h-8 shrink-0 items-center justify-center gap-x-1.5 rounded-full bg-secondary text-secondary-foreground px-3 hover:bg-secondary/80 transition-smooth cursor-pointer">
-            <span className="material-symbols-outlined text-base">tag</span>
-            <p className="text-sm font-medium leading-normal">#VintageLook</p>
-          </div>
-          <div className="flex h-8 shrink-0 items-center justify-center gap-x-1.5 rounded-full bg-secondary text-secondary-foreground px-3 hover:bg-secondary/80 transition-smooth cursor-pointer">
-            <span className="material-symbols-outlined text-base">tag</span>
-            <p className="text-sm font-medium leading-normal">#VHS</p>
-          </div>
-        </div>
+        )}
 
-        {/* Video Feed */}
-        <div className="grid grid-cols-1 gap-4 px-4">
-          {/* Video Post 1 */}
-          <div className="flex flex-col gap-3">
-            <div
-              className="bg-center bg-no-repeat aspect-[9/16] bg-cover rounded-xl w-full cursor-pointer hover:opacity-90 transition-smooth"
-              style={{
-                backgroundImage:
-                  'url("https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=700&fit=crop")',
-              }}
-            />
-            <div className="flex items-start gap-3">
-              <div
-                className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
-                style={{
-                  backgroundImage:
-                    'url("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop")',
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-bold text-sm">My latest neon edit, what do you think?</p>
-                <p className="text-muted-foreground text-xs">Alex • 2 hours ago</p>
-              </div>
-              <div className="flex items-center gap-4 text-muted-foreground shrink-0">
-                <div className="flex items-center gap-1">
-                  <Heart className="w-4 h-4" />
-                  <span className="text-sm font-medium">1.2k</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">241</span>
-                </div>
-              </div>
+        {activeTab === "challenges" && (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <Heart className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-bold text-foreground mb-2">No Challenges</h3>
+            <p className="text-muted-foreground max-w-sm">
+              Check back later for exciting community challenges
+            </p>
+          </div>
+        )}
+
+        {activeTab === "info" && (
+          <div className="p-4 space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-foreground mb-2">About</h3>
+              <p className="text-muted-foreground">
+                A community for video editors to share tips, tricks, and showcase their work.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Rules</h3>
+              <ol className="list-decimal list-inside text-muted-foreground space-y-2">
+                <li>Be respectful to all members</li>
+                <li>No spam or self-promotion</li>
+                <li>Share quality content</li>
+                <li>Give credit to original creators</li>
+              </ol>
             </div>
           </div>
-
-          {/* Video Post 2 */}
-          <div className="flex flex-col gap-3">
-            <div
-              className="bg-center bg-no-repeat aspect-[9/16] bg-cover rounded-xl w-full cursor-pointer hover:opacity-90 transition-smooth"
-              style={{
-                backgroundImage:
-                  'url("https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=700&fit=crop")',
-              }}
-            />
-            <div className="flex items-start gap-3">
-              <div
-                className="w-10 h-10 rounded-full bg-cover bg-center shrink-0"
-                style={{
-                  backgroundImage:
-                    'url("https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop")',
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-bold text-sm">Testing out some new transition effects!</p>
-                <p className="text-muted-foreground text-xs">Sarah • 5 hours ago</p>
-              </div>
-              <div className="flex items-center gap-4 text-muted-foreground shrink-0">
-                <div className="flex items-center gap-1">
-                  <Heart className="w-4 h-4" />
-                  <span className="text-sm font-medium">980</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">102</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </main>
 
       {/* Bottom Navigation */}
@@ -196,11 +230,17 @@ const Community = () => {
           >
             <Plus className="w-8 h-8" />
           </button>
-          <button className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth">
+          <button 
+            onClick={() => navigate("/inbox")}
+            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth"
+          >
             <Inbox className="w-6 h-6" />
             <span className="text-xs font-medium">Inbox</span>
           </button>
-          <button className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth">
+          <button 
+            onClick={() => navigate("/profile")}
+            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-smooth"
+          >
             <User className="w-6 h-6" />
             <span className="text-xs font-medium">Profile</span>
           </button>

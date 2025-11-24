@@ -169,11 +169,17 @@ const Create = () => {
                 <Plus className="w-5 h-5" />
               </div>
             </button>
-            <button className="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-white transition-smooth">
+            <button 
+              onClick={() => navigate("/inbox")}
+              className="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-white transition-smooth"
+            >
               <Inbox className="w-6 h-6" />
               <span className="text-xs">Inbox</span>
             </button>
-            <button className="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-white transition-smooth">
+            <button 
+              onClick={() => navigate("/profile")}
+              className="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-white transition-smooth"
+            >
               <User className="w-6 h-6" />
               <span className="text-xs">Profile</span>
             </button>
