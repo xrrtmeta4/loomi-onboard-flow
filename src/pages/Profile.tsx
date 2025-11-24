@@ -44,6 +44,12 @@ const Profile = () => {
     getUser();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      subscribeToVideoLikes(user.id);
+    }
+  }, [user]);
+
   const getUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -54,6 +60,55 @@ const Profile = () => {
       navigate("/auth");
     }
     setLoading(false);
+  };
+
+  const subscribeToVideoLikes = (userId: string) => {
+    // Subscribe to video_likes changes
+    const likesChannel = supabase
+      .channel('video-likes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'video_likes',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Video like change:', payload);
+          // Refetch liked videos when there's a change
+          fetchLikedVideos(userId);
+        }
+      )
+      .subscribe();
+
+    // Subscribe to videos table to update like counts in real-time
+    const videosChannel = supabase
+      .channel('user-videos-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'videos',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Video update:', payload);
+          // Update the specific video in the list
+          setUserVideos((prev) =>
+            prev.map((video) =>
+              video.id === payload.new.id ? { ...video, ...payload.new } : video
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(likesChannel);
+      supabase.removeChannel(videosChannel);
+    };
   };
 
   const subscribeToProfile = (userId: string) => {
