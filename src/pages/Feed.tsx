@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CommentModal } from "@/components/CommentModal";
 import { FollowButton } from "@/components/FollowButton";
-import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music, Download } from "lucide-react";
 
 interface Video {
   id: string;
@@ -151,6 +151,26 @@ const Feed = () => {
     }
   };
 
+  const handleDownload = async (video: Video) => {
+    try {
+      toast("Downloading video...");
+      const response = await fetch(video.video_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `video_${video.id}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Video downloaded!");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download video");
+    }
+  };
+
   const handleShare = async (video: Video) => {
     if (navigator.share) {
       try {
@@ -159,6 +179,7 @@ const Feed = () => {
           text: video.description || "",
           url: window.location.href,
         });
+        toast.success("Shared successfully!");
       } catch (error) {
         console.log("Share cancelled");
       }
@@ -387,7 +408,7 @@ const Feed = () => {
             <div className="relative z-10 flex flex-col justify-end h-full w-full pb-20">
               {/* Right Action Bar */}
               <aside className="absolute right-2 bottom-24 flex flex-col items-center gap-4">
-                {/* Profile */}
+                {/* Profile with Follow Button */}
                 <div className="relative flex flex-col items-center gap-2">
                   <img
                     alt={video.profiles.display_name || video.profiles.username}
@@ -398,10 +419,12 @@ const Feed = () => {
                     }
                   />
                   {user?.id !== video.user_id && (
-                    <FollowButton
-                      profileId={video.user_id}
-                      currentUserId={user?.id}
-                    />
+                    <div className="absolute -bottom-2">
+                      <FollowButton
+                        profileId={video.user_id}
+                        currentUserId={user?.id}
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -452,6 +475,16 @@ const Feed = () => {
                     className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth"
                   >
                     <Share2 className="w-7 h-7" />
+                  </button>
+                </div>
+
+                {/* Download */}
+                <div className="flex flex-col items-center gap-1 text-center text-white">
+                  <button
+                    onClick={() => handleDownload(video)}
+                    className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
+                    <Download className="w-7 h-7" />
                   </button>
                 </div>
               </aside>

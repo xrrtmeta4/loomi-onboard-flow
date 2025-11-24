@@ -52,8 +52,9 @@ const Create = () => {
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(1);
   const [textOverlays, setTextOverlays] = useState<any[]>([]);
-  const [stickers, setStickers] = useState<string[]>([]);
-  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [stickers, setStickers] = useState<{ url: string; x: number; y: number }[]>([]);
+  const [gifs, setGifs] = useState<{ url: string; x: number; y: number }[]>([]);
+  const [draggingItem, setDraggingItem] = useState<{ type: string; index: number } | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [transition, setTransition] = useState<string | null>(null);
   const [greenScreenBg, setGreenScreenBg] = useState<string | null>(null);
@@ -291,7 +292,23 @@ const Create = () => {
             {/* Text Overlays */}
             {textOverlays.map((overlay, index) => (
               <div
-                key={index}
+                key={`text-${index}`}
+                draggable
+                onDragStart={(e) => {
+                  setDraggingItem({ type: "text", index });
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragEnd={(e) => {
+                  if (videoRef.current) {
+                    const rect = videoRef.current.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setTextOverlays((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
                 style={{
                   position: "absolute",
                   left: `${overlay.x}%`,
@@ -300,11 +317,72 @@ const Create = () => {
                   color: overlay.color,
                   fontWeight: "bold",
                   textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
-                  pointerEvents: "none",
+                  cursor: "move",
+                  userSelect: "none",
                 }}
               >
                 {overlay.text}
               </div>
+            ))}
+            {/* Stickers */}
+            {stickers.map((sticker, index) => (
+              <img
+                key={`sticker-${index}`}
+                src={sticker.url}
+                draggable
+                onDragStart={() => setDraggingItem({ type: "sticker", index })}
+                onDragEnd={(e) => {
+                  if (videoRef.current) {
+                    const rect = videoRef.current.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setStickers((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
+                style={{
+                  position: "absolute",
+                  left: `${sticker.x}%`,
+                  top: `${sticker.y}%`,
+                  width: "80px",
+                  height: "80px",
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                alt="sticker"
+              />
+            ))}
+            {/* GIFs */}
+            {gifs.map((gif, index) => (
+              <img
+                key={`gif-${index}`}
+                src={gif.url}
+                draggable
+                onDragStart={() => setDraggingItem({ type: "gif", index })}
+                onDragEnd={(e) => {
+                  if (videoRef.current) {
+                    const rect = videoRef.current.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setGifs((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
+                style={{
+                  position: "absolute",
+                  left: `${gif.x}%`,
+                  top: `${gif.y}%`,
+                  width: "120px",
+                  height: "120px",
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                alt="gif"
+              />
             ))}
           </div>
         ) : imagePreview ? (
@@ -319,7 +397,20 @@ const Create = () => {
             {/* Text Overlays */}
             {textOverlays.map((overlay, index) => (
               <div
-                key={index}
+                key={`text-img-${index}`}
+                draggable
+                onDragStart={() => setDraggingItem({ type: "text", index })}
+                onDragEnd={(e) => {
+                  const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (rect) {
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setTextOverlays((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
                 style={{
                   position: "absolute",
                   left: `${overlay.x}%`,
@@ -328,11 +419,72 @@ const Create = () => {
                   color: overlay.color,
                   fontWeight: "bold",
                   textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
-                  pointerEvents: "none",
+                  cursor: "move",
+                  userSelect: "none",
                 }}
               >
                 {overlay.text}
               </div>
+            ))}
+            {/* Stickers */}
+            {stickers.map((sticker, index) => (
+              <img
+                key={`sticker-img-${index}`}
+                src={sticker.url}
+                draggable
+                onDragStart={() => setDraggingItem({ type: "sticker", index })}
+                onDragEnd={(e) => {
+                  const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (rect) {
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setStickers((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
+                style={{
+                  position: "absolute",
+                  left: `${sticker.x}%`,
+                  top: `${sticker.y}%`,
+                  width: "80px",
+                  height: "80px",
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                alt="sticker"
+              />
+            ))}
+            {/* GIFs */}
+            {gifs.map((gif, index) => (
+              <img
+                key={`gif-img-${index}`}
+                src={gif.url}
+                draggable
+                onDragStart={() => setDraggingItem({ type: "gif", index })}
+                onDragEnd={(e) => {
+                  const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                  if (rect) {
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    setGifs((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, x, y } : item))
+                    );
+                  }
+                  setDraggingItem(null);
+                }}
+                style={{
+                  position: "absolute",
+                  left: `${gif.x}%`,
+                  top: `${gif.y}%`,
+                  width: "120px",
+                  height: "120px",
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                alt="gif"
+              />
             ))}
           </div>
         ) : (
@@ -628,16 +780,16 @@ const Create = () => {
         isOpen={showStickers}
         onClose={() => setShowStickers(false)}
         onSelectSticker={(url) => {
-          setStickers([...stickers, url]);
-          toast.success("Sticker added!");
+          setStickers([...stickers, { url, x: 50, y: 50 }]);
+          toast.success("Sticker added! Drag to position.");
         }}
       />
       <GifsDialog
         isOpen={showGifs}
         onClose={() => setShowGifs(false)}
         onSelectGif={(url) => {
-          setSelectedGif(url);
-          toast.success("GIF added!");
+          setGifs([...gifs, { url, x: 50, y: 50 }]);
+          toast.success("GIF added! Drag to position.");
         }}
       />
       <SpeedDialog
