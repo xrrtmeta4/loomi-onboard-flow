@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CommentModal } from "@/components/CommentModal";
+import { FollowButton } from "@/components/FollowButton";
 import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music } from "lucide-react";
 
 interface Video {
@@ -168,11 +169,29 @@ const Feed = () => {
     }
   };
 
+  // Video playback control based on visibility
   useEffect(() => {
-    if (videoRef.current && videos[currentVideoIndex]) {
-      videoRef.current.play().catch(console.error);
-    }
-  }, [currentVideoIndex, videos]);
+    const videos = document.querySelectorAll('video');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const video = entry.target as HTMLVideoElement;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.75) {
+            video.play().catch(console.error);
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: [0, 0.75, 1] }
+    );
+
+    videos.forEach((video) => observer.observe(video));
+
+    return () => {
+      videos.forEach((video) => observer.unobserve(video));
+    };
+  }, [videos]);
 
   // Handle scroll to change videos and load more
   useEffect(() => {
@@ -369,7 +388,7 @@ const Feed = () => {
               {/* Right Action Bar */}
               <aside className="absolute right-2 bottom-24 flex flex-col items-center gap-4">
                 {/* Profile */}
-                <div className="relative flex flex-col items-center">
+                <div className="relative flex flex-col items-center gap-2">
                   <img
                     alt={video.profiles.display_name || video.profiles.username}
                     className="size-12 rounded-full border-2 border-white object-cover"
@@ -379,9 +398,10 @@ const Feed = () => {
                     }
                   />
                   {user?.id !== video.user_id && (
-                    <button className="absolute -bottom-2.5 flex items-center justify-center size-5 rounded-full bg-primary-purple text-white hover:bg-primary-purple/90 transition-smooth">
-                      <Plus className="w-3 h-3" />
-                    </button>
+                    <FollowButton
+                      profileId={video.user_id}
+                      currentUserId={user?.id}
+                    />
                   )}
                 </div>
 
