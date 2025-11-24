@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CommentModal } from "@/components/CommentModal";
 import { FollowButton } from "@/components/FollowButton";
-import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music, Download } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, Share2, Bookmark, Music, Download, Laugh, Flame, PartyPopper } from "lucide-react";
 
 interface Video {
   id: string;
@@ -34,6 +34,7 @@ const Feed = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [lastTap, setLastTap] = useState(0);
+  const [reactions, setReactions] = useState<{ id: string; videoId: string; emoji: string; x: number; y: number }[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +268,24 @@ const Feed = () => {
     setCommentModalOpen(true);
   };
 
+  const sendReaction = (videoId: string, emoji: string) => {
+    const reactionId = `${Date.now()}-${Math.random()}`;
+    const newReaction = {
+      id: reactionId,
+      videoId,
+      emoji,
+      x: Math.random() * 80 + 10, // Random position between 10-90%
+      y: Math.random() * 30 + 60, // Start from bottom area (60-90%)
+    };
+    
+    setReactions((prev) => [...prev, newReaction]);
+    
+    // Remove reaction after animation completes
+    setTimeout(() => {
+      setReactions((prev) => prev.filter((r) => r.id !== reactionId));
+    }, 3000);
+  };
+
   if (loading) {
     return (
       <div className="mx-auto max-w-sm min-h-screen bg-black flex items-center justify-center">
@@ -283,9 +302,6 @@ const Feed = () => {
           <div className="flex border-b border-white/10 mx-4 justify-between">
             <button className="flex flex-col items-center justify-center border-b-[3px] border-b-white text-white pb-3 pt-4 flex-1">
               <p className="text-white text-sm font-bold leading-normal tracking-[0.015em]">For You</p>
-            </button>
-            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-400 pb-3 pt-4 flex-1 hover:text-white transition-smooth">
-              <p className="text-sm font-bold leading-normal tracking-[0.015em]">Following</p>
             </button>
             <button 
               onClick={() => navigate("/community")}
@@ -352,9 +368,6 @@ const Feed = () => {
           <button className="flex flex-col items-center justify-center border-b-[3px] border-b-white text-white pb-3 pt-4 flex-1">
             <p className="text-white text-sm font-bold leading-normal tracking-[0.015em]">For You</p>
           </button>
-          <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-400 pb-3 pt-4 flex-1 hover:text-white transition-smooth">
-            <p className="text-sm font-bold leading-normal tracking-[0.015em]">Following</p>
-          </button>
           <button 
             onClick={() => navigate("/community")}
             className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-400 pb-3 pt-4 flex-1 hover:text-white transition-smooth"
@@ -400,6 +413,23 @@ const Feed = () => {
             >
               <Heart className="w-32 h-32 text-white fill-white" />
             </div>
+
+            {/* Floating Reactions */}
+            {reactions
+              .filter((r) => r.videoId === video.id)
+              .map((reaction) => (
+                <div
+                  key={reaction.id}
+                  className="absolute z-30 animate-float-up pointer-events-none"
+                  style={{
+                    left: `${reaction.x}%`,
+                    top: `${reaction.y}%`,
+                    fontSize: "3rem",
+                  }}
+                >
+                  {reaction.emoji}
+                </div>
+              ))}
 
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/30" />
@@ -485,6 +515,34 @@ const Feed = () => {
                     className="rounded-full bg-black/30 p-3 backdrop-blur-sm hover:bg-black/40 transition-smooth"
                   >
                     <Download className="w-7 h-7" />
+                  </button>
+                </div>
+
+                {/* Reactions */}
+                <div className="flex flex-col items-center gap-2 text-center text-white">
+                  <button
+                    onClick={() => sendReaction(video.id, "🔥")}
+                    className="rounded-full bg-black/30 p-2 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
+                    <Flame className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => sendReaction(video.id, "❤️")}
+                    className="rounded-full bg-black/30 p-2 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
+                    <Heart className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => sendReaction(video.id, "😂")}
+                    className="rounded-full bg-black/30 p-2 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
+                    <Laugh className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => sendReaction(video.id, "🎉")}
+                    className="rounded-full bg-black/30 p-2 backdrop-blur-sm hover:bg-black/40 transition-smooth"
+                  >
+                    <PartyPopper className="w-6 h-6" />
                   </button>
                 </div>
               </aside>

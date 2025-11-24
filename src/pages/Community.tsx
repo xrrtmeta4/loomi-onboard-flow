@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, X, Send } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Heart, MessageCircle, X, Send, Upload as UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ const Community = () => {
     description: "",
     avatar_url: "",
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchCommunities();
@@ -68,6 +70,47 @@ const Community = () => {
     }
 
     setQuestions(data || []);
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Please log in to upload images");
+        navigate("/auth");
+        return;
+      }
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}_community.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(data.path);
+
+      setNewCommunity({ ...newCommunity, avatar_url: publicUrl });
+      toast.success("Image uploaded successfully!");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleCreateCommunity = async () => {
@@ -159,6 +202,40 @@ const Community = () => {
                 <DialogTitle>Create Community</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+                
+                <div>
+                  <label className="text-sm font-medium">Community Avatar</label>
+                  <div className="mt-2 flex items-center gap-4">
+                    {newCommunity.avatar_url ? (
+                      <img
+                        src={newCommunity.avatar_url}
+                        alt="Community avatar"
+                        className="w-20 h-20 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                        <Users className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      {uploadingAvatar ? "Uploading..." : "Upload Image"}
+                    </Button>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium">Community Name</label>
                   <Input
@@ -176,15 +253,6 @@ const Community = () => {
                     placeholder="What's your community about?"
                     className="mt-1"
                     rows={3}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Avatar URL (optional)</label>
-                  <Input
-                    value={newCommunity.avatar_url}
-                    onChange={(e) => setNewCommunity({ ...newCommunity, avatar_url: e.target.value })}
-                    placeholder="https://..."
-                    className="mt-1"
                   />
                 </div>
                 <Button onClick={handleCreateCommunity} className="w-full">
