@@ -112,42 +112,84 @@ const Feed = () => {
 
     const isLiked = likedVideos.has(videoId);
 
+    // Optimistically update UI
+    setLikedVideos((prev) => {
+      const newSet = new Set(prev);
+      if (isLiked) {
+        newSet.delete(videoId);
+      } else {
+        newSet.add(videoId);
+      }
+      return newSet;
+    });
+
+    setVideos((prev) =>
+      prev.map((v) =>
+        v.id === videoId 
+          ? { ...v, like_count: isLiked ? Math.max(0, v.like_count - 1) : v.like_count + 1 } 
+          : v
+      )
+    );
+
     try {
       if (isLiked) {
-        // Unlike
-        await supabase
+        // Unlike - delete from video_likes
+        const { error: deleteError } = await supabase
           .from("video_likes")
           .delete()
           .eq("video_id", videoId)
           .eq("user_id", user.id);
 
-        setLikedVideos((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(videoId);
-          return newSet;
-        });
+        if (deleteError) throw deleteError;
 
-        setVideos((prev) =>
-          prev.map((v) =>
-            v.id === videoId ? { ...v, like_count: Math.max(0, v.like_count - 1) } : v
-          )
-        );
+        // Update video like_count in database
+        const { error: updateError } = await supabase
+          .from("videos")
+          .update({ like_count: Math.max(0, videos.find(v => v.id === videoId)!.like_count - 1) })
+          .eq("id", videoId);
+
+        if (updateError) throw updateError;
       } else {
-        // Like
-        await supabase.from("video_likes").insert({
-          video_id: videoId,
-          user_id: user.id,
-        });
+        // Like - insert into video_likes
+        const { error: insertError } = await supabase
+          .from("video_likes")
+          .insert({
+            video_id: videoId,
+            user_id: user.id,
+          });
 
-        setLikedVideos((prev) => new Set([...prev, videoId]));
+        if (insertError) throw insertError;
 
-        setVideos((prev) =>
-          prev.map((v) => (v.id === videoId ? { ...v, like_count: v.like_count + 1 } : v))
-        );
+        // Update video like_count in database
+        const { error: updateError } = await supabase
+          .from("videos")
+          .update({ like_count: videos.find(v => v.id === videoId)!.like_count + 1 })
+          .eq("id", videoId);
+
+        if (updateError) throw updateError;
       }
     } catch (error: any) {
       console.error("Error toggling like:", error);
       toast.error("Failed to update like");
+      
+      // Revert optimistic update on error
+      setLikedVideos((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.add(videoId);
+        } else {
+          newSet.delete(videoId);
+        }
+        return newSet;
+      });
+
+      setVideos((prev) =>
+        prev.map((v) =>
+          v.id === videoId 
+            ? { ...v, like_count: isLiked ? v.like_count + 1 : Math.max(0, v.like_count - 1) } 
+            : v
+        )
+      );
     }
   };
 
