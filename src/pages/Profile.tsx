@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { FollowButton } from "@/components/FollowButton";
+import { AnimatedCounter } from "@/components/AnimatedCounter";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ const Profile = () => {
   };
 
   const subscribeToProfile = (userId: string) => {
-    const channel = supabase
+    const profileChannel = supabase
       .channel('profile-changes')
       .on(
         'postgres_changes',
@@ -123,13 +124,50 @@ const Profile = () => {
           filter: `id=eq.${userId}`
         },
         (payload) => {
+          console.log('Profile updated:', payload);
           setProfile(payload.new);
         }
       )
       .subscribe();
 
+    // Subscribe to follows table to get immediate updates
+    const followsChannel = supabase
+      .channel('follows-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `following_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Follow change (follower):', payload);
+          // The profile will be updated by the trigger, which will trigger the profile update above
+          // But we can show a toast notification
+          if (payload.eventType === 'INSERT') {
+            toast.success("New follower!");
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `follower_id=eq.${userId}`
+        },
+        (payload) => {
+          console.log('Follow change (following):', payload);
+          // The profile will be updated by the trigger
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(followsChannel);
     };
   };
 
@@ -398,11 +436,15 @@ const Profile = () => {
 
               <div className="flex gap-4 text-center">
                 <div>
-                  <p className="text-xl font-bold text-foreground">{profile?.following_count || 0}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedCounter value={profile?.following_count || 0} />
+                  </p>
                   <p className="text-sm text-muted-foreground">Following</p>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-foreground">{profile?.follower_count || 0}</p>
+                  <p className="text-xl font-bold text-foreground">
+                    <AnimatedCounter value={profile?.follower_count || 0} />
+                  </p>
                   <p className="text-sm text-muted-foreground">Followers</p>
                 </div>
                 <div>
