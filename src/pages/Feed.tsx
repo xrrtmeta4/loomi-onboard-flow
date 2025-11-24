@@ -191,14 +191,67 @@ const Feed = () => {
 
   if (videos.length === 0) {
     return (
-      <div className="mx-auto max-w-sm min-h-screen bg-black flex flex-col items-center justify-center p-4">
-        <p className="text-white text-lg mb-4">No videos yet</p>
-        <button
-          onClick={() => navigate("/create")}
-          className="bg-primary-purple text-white px-6 py-3 rounded-lg hover:bg-primary-purple/90 transition-smooth"
-        >
-          Upload First Video
-        </button>
+      <div className="mx-auto max-w-sm min-h-screen bg-black flex flex-col">
+        {/* Header */}
+        <header className="pt-10 pb-4">
+          <div className="flex border-b border-white/10 mx-4 justify-between">
+            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-white text-white pb-3 pt-4 flex-1">
+              <p className="text-white text-sm font-bold leading-normal tracking-[0.015em]">For You</p>
+            </button>
+            <button className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-400 pb-3 pt-4 flex-1 hover:text-white transition-smooth">
+              <p className="text-sm font-bold leading-normal tracking-[0.015em]">Following</p>
+            </button>
+            <button 
+              onClick={() => navigate("/community")}
+              className="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-400 pb-3 pt-4 flex-1 hover:text-white transition-smooth"
+            >
+              <p className="text-sm font-bold leading-normal tracking-[0.015em]">Communities</p>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center text-white/60">
+            <p className="text-lg mb-2">Welcome to the community!</p>
+            <p className="text-sm">Start exploring or create your first video</p>
+          </div>
+        </main>
+
+        {/* Bottom Navigation */}
+        <nav className="flex h-20 items-center justify-around bg-black text-gray-400 border-t border-white/10">
+          <button className="flex flex-col items-center gap-1 text-white transition-smooth">
+            <Home className="w-7 h-7" />
+            <p className="text-xs font-bold">Home</p>
+          </button>
+          <button 
+            onClick={() => navigate("/community")}
+            className="flex flex-col items-center gap-1 hover:text-white transition-smooth"
+          >
+            <Users className="w-7 h-7" />
+            <p className="text-xs font-medium">Communities</p>
+          </button>
+          <button 
+            onClick={() => navigate("/create")}
+            className="flex h-12 w-16 items-center justify-center rounded-xl bg-primary-purple text-white hover:bg-primary-purple/90 transition-smooth"
+          >
+            <Plus className="w-8 h-8" />
+          </button>
+          <button 
+            onClick={() => navigate("/inbox")}
+            className="flex flex-col items-center gap-1 hover:text-white transition-smooth"
+          >
+            <Inbox className="w-7 h-7" />
+            <p className="text-xs font-medium">Inbox</p>
+          </button>
+          <button 
+            onClick={() => navigate("/profile")}
+            className="flex flex-col items-center gap-1 hover:text-white transition-smooth"
+          >
+            <User className="w-7 h-7" />
+            <p className="text-xs font-medium">Profile</p>
+          </button>
+        </nav>
       </div>
     );
   }

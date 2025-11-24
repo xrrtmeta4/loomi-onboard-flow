@@ -7,6 +7,11 @@ import { FiltersDialog, EffectsDialog } from "@/components/video-editor/FiltersD
 import { TextOverlayDialog } from "@/components/video-editor/TextOverlayDialog";
 import { MusicDialog } from "@/components/video-editor/MusicDialog";
 import { TrimDialog } from "@/components/video-editor/TrimDialog";
+import { StickersDialog } from "@/components/video-editor/StickersDialog";
+import { GifsDialog } from "@/components/video-editor/GifsDialog";
+import { SpeedDialog } from "@/components/video-editor/SpeedDialog";
+import { TransitionsDialog } from "@/components/video-editor/TransitionsDialog";
+import { GreenScreenDialog } from "@/components/video-editor/GreenScreenDialog";
 import { 
   X, 
   Music, 
@@ -24,7 +29,12 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
-  Type
+  Type,
+  Smile,
+  Film,
+  Gauge,
+  Shuffle,
+  Scissors
 } from "lucide-react";
 
 const Create = () => {
@@ -39,6 +49,12 @@ const Create = () => {
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
   const [musicVolume, setMusicVolume] = useState(1);
   const [textOverlays, setTextOverlays] = useState<any[]>([]);
+  const [stickers, setStickers] = useState<string[]>([]);
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [transition, setTransition] = useState<string | null>(null);
+  const [greenScreenBg, setGreenScreenBg] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
   
   // Dialog states
   const [showFilters, setShowFilters] = useState(false);
@@ -46,6 +62,11 @@ const Create = () => {
   const [showMusic, setShowMusic] = useState(false);
   const [showText, setShowText] = useState(false);
   const [showTrim, setShowTrim] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
+  const [showGifs, setShowGifs] = useState(false);
+  const [showSpeed, setShowSpeed] = useState(false);
+  const [showTransitions, setShowTransitions] = useState(false);
+  const [showGreenScreen, setShowGreenScreen] = useState(false);
   
   const videoInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -339,46 +360,74 @@ const Create = () => {
 
         {/* Right-Side Toolbar */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl glass p-2 text-white">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl glass p-2 text-white max-h-[70vh] overflow-y-auto scrollbar-hide">
             <button
               onClick={() => setShowFilters(true)}
-              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
             >
-              <Camera className="w-6 h-6" />
-              <span className="text-xs font-medium">Filters</span>
+              <Camera className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Filters</span>
             </button>
             <button
               onClick={() => setShowEffects(true)}
-              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
             >
-              <Sparkles className="w-6 h-6" />
-              <span className="text-xs font-medium">Effects</span>
+              <Sparkles className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Effects</span>
             </button>
             <button
               onClick={() => imageInputRef.current?.click()}
-              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
             >
-              <ImageIcon className="w-6 h-6" />
-              <span className="text-xs font-medium">Image</span>
+              <ImageIcon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Image</span>
             </button>
             <button
               onClick={() => setShowText(true)}
-              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth"
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
             >
-              <Type className="w-6 h-6" />
-              <span className="text-xs font-medium">Text</span>
+              <Type className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Text</span>
+            </button>
+            <button
+              onClick={() => setShowStickers(true)}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
+            >
+              <Smile className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Sticker</span>
+            </button>
+            <button
+              onClick={() => setShowGifs(true)}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
+            >
+              <Film className="w-5 h-5" />
+              <span className="text-[10px] font-medium">GIFs</span>
+            </button>
+            <button
+              onClick={() => setShowSpeed(true)}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
+            >
+              <Gauge className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Speed</span>
+            </button>
+            <button
+              onClick={() => setShowTransitions(true)}
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth"
+            >
+              <Shuffle className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Trans</span>
             </button>
             <button
               onClick={() => setShowTrim(true)}
               disabled={!videoPreview}
-              className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth disabled:opacity-50"
+              className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth disabled:opacity-50"
             >
-              <Layers className="w-6 h-6" />
-              <span className="text-xs font-medium">Trim</span>
+              <Scissors className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Trim</span>
             </button>
-            <button className="flex flex-col items-center gap-1 p-1 hover:text-primary transition-smooth">
-              <Timer className="w-6 h-6" />
-              <span className="text-xs font-medium">Timer</span>
+            <button className="flex flex-col items-center gap-0.5 p-1 hover:text-primary transition-smooth">
+              <Timer className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Timer</span>
             </button>
           </div>
         </div>
@@ -529,6 +578,49 @@ const Create = () => {
           }}
         />
       )}
+      <StickersDialog
+        isOpen={showStickers}
+        onClose={() => setShowStickers(false)}
+        onSelectSticker={(url) => {
+          setStickers([...stickers, url]);
+          toast.success("Sticker added!");
+        }}
+      />
+      <GifsDialog
+        isOpen={showGifs}
+        onClose={() => setShowGifs(false)}
+        onSelectGif={(url) => {
+          setSelectedGif(url);
+          toast.success("GIF added!");
+        }}
+      />
+      <SpeedDialog
+        isOpen={showSpeed}
+        onClose={() => setShowSpeed(false)}
+        onSelectSpeed={(speed) => {
+          setPlaybackSpeed(speed);
+          if (videoRef.current) {
+            videoRef.current.playbackRate = speed;
+          }
+          toast.success(`Speed set to ${speed}x`);
+        }}
+      />
+      <TransitionsDialog
+        isOpen={showTransitions}
+        onClose={() => setShowTransitions(false)}
+        onSelectTransition={(trans) => {
+          setTransition(trans);
+          toast.success(`${trans} transition applied!`);
+        }}
+      />
+      <GreenScreenDialog
+        isOpen={showGreenScreen}
+        onClose={() => setShowGreenScreen(false)}
+        onApplyGreenScreen={(bgUrl, threshold) => {
+          setGreenScreenBg(bgUrl);
+          toast.success("Green screen effect applied!");
+        }}
+      />
     </div>
   );
 };
