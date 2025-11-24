@@ -11,6 +11,7 @@ import Community from "./pages/Community";
 import Create from "./pages/Create";
 import Profile from "./pages/Profile";
 import Inbox from "./pages/Inbox";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<Onboarding />} />
           <Route path="/topics" element={<Topics />} />
           <Route path="/preferences" element={<Preferences />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/community" element={<Community />} />
           <Route path="/create" element={<Create />} />
