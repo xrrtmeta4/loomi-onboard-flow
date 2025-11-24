@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { X, Send } from "lucide-react";
+import { X, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -172,6 +172,33 @@ export const CommentModal = ({ videoId, isOpen, onClose }: CommentModalProps) =>
     }
   };
 
+  const handleDelete = async (commentId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("comments")
+        .delete()
+        .eq("id", commentId)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      
+      // Update comment count
+      await supabase
+        .from("videos")
+        .update({ comment_count: Math.max(0, comments.length - 1) })
+        .eq("id", videoId);
+
+      toast.success("Comment deleted");
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
+    }
+  };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -218,7 +245,7 @@ export const CommentModal = ({ videoId, isOpen, onClose }: CommentModalProps) =>
           ) : (
             <div className="space-y-4">
               {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
+                <div key={comment.id} className="flex gap-3 group">
                   <img
                     src={
                       comment.profiles.avatar_url ||
@@ -238,6 +265,14 @@ export const CommentModal = ({ videoId, isOpen, onClose }: CommentModalProps) =>
                     </div>
                     <p className="text-sm text-foreground">{comment.content}</p>
                   </div>
+                  {user?.id === comment.user_id && (
+                    <button
+                      onClick={() => handleDelete(comment.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
