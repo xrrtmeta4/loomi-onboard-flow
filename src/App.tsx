@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Inbox from "./pages/Inbox";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const AppRoutes = () => {
         path="/topics"
         element={user ? <Navigate to="/feed" replace /> : <Topics />}
       />
+      <Route path="/install" element={<Install />} />
 
       {/* Protected routes - require authentication */}
       <Route element={<ProtectedRoute />}>
