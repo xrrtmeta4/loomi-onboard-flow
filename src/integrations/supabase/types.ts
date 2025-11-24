@@ -254,6 +254,8 @@ export type Database = {
           bio: string | null
           created_at: string | null
           display_name: string | null
+          follower_count: number | null
+          following_count: number | null
           id: string
           updated_at: string | null
           username: string
@@ -263,6 +265,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
+          follower_count?: number | null
+          following_count?: number | null
           id: string
           updated_at?: string | null
           username: string
@@ -272,6 +276,8 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           display_name?: string | null
+          follower_count?: number | null
+          following_count?: number | null
           id?: string
           updated_at?: string | null
           username?: string

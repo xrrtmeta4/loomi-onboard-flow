@@ -1,19 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft } from "lucide-react";
+import { Home, Users, Plus, Inbox, User, Settings, Grid3X3, Heart, Share2, ChevronLeft, Upload, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { FollowButton } from "@/components/FollowButton";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     display_name: "",
@@ -30,10 +33,33 @@ const Profile = () => {
     if (user) {
       setUser(user);
       await getProfile(user.id);
+      subscribeToProfile(user.id);
     } else {
-      navigate("/onboarding");
+      navigate("/auth");
     }
     setLoading(false);
+  };
+
+  const subscribeToProfile = (userId: string) => {
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`
+        },
+        (payload) => {
+          setProfile(payload.new);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   };
 
   const getProfile = async (userId: string) => {
@@ -76,6 +102,42 @@ const Profile = () => {
     getProfile(user.id);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: data.publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Avatar updated!");
+      getProfile(user.id);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload avatar");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -103,14 +165,29 @@ const Profile = () => {
       <main className="flex-1 p-4">
         {/* Profile Header */}
         <div className="flex flex-col items-center gap-4 pb-6">
-          <div className="relative">
+          <div className="relative group">
             <div
-              className="w-24 h-24 rounded-full bg-cover bg-center border-4 border-border"
+              className="w-24 h-24 rounded-full bg-cover bg-center border-4 border-border cursor-pointer"
               style={{
                 backgroundImage: profile?.avatar_url
                   ? `url(${profile.avatar_url})`
                   : 'url("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop")',
               }}
+              onClick={() => fileInputRef.current?.click()}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-smooth"
+              disabled={uploading}
+            >
+              {uploading ? "..." : <Camera className="w-4 h-4" />}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
             />
           </div>
           
@@ -173,11 +250,11 @@ const Profile = () => {
 
               <div className="flex gap-4 text-center">
                 <div>
-                  <p className="text-xl font-bold text-foreground">0</p>
+                  <p className="text-xl font-bold text-foreground">{profile?.following_count || 0}</p>
                   <p className="text-sm text-muted-foreground">Following</p>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-foreground">0</p>
+                  <p className="text-xl font-bold text-foreground">{profile?.follower_count || 0}</p>
                   <p className="text-sm text-muted-foreground">Followers</p>
                 </div>
                 <div>
@@ -186,10 +263,15 @@ const Profile = () => {
                 </div>
               </div>
 
-              <Button variant="default" className="w-full max-w-xs">
-                <Share2 className="w-4 h-4 mr-2" />
-                Share Profile
-              </Button>
+              <div className="flex gap-2 w-full max-w-xs">
+                <Button variant="default" className="flex-1">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+                <Button onClick={() => supabase.auth.signOut().then(() => navigate("/auth"))} variant="outline" className="flex-1">
+                  Sign Out
+                </Button>
+              </div>
             </>
           )}
         </div>
