@@ -292,11 +292,15 @@ const Profile = () => {
               </div>
             </div>
 
-            {/* Empty State */}
+            {/* Empty State with Upload */}
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Grid3X3 className="w-16 h-16 text-muted-foreground mb-4" />
               <p className="text-foreground font-medium">No videos yet</p>
-              <p className="text-muted-foreground text-sm mt-1">Start creating to see your videos here</p>
+              <p className="text-muted-foreground text-sm mt-1 mb-4">Start creating to see your videos here</p>
+              <Button onClick={() => navigate("/create")} className="gap-2">
+                <Upload className="w-4 h-4" />
+                Upload Video
+              </Button>
             </div>
           </>
         )}
