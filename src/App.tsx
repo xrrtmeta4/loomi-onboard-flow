@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Onboarding from "./pages/Onboarding";
 import Topics from "./pages/Topics";
 import Preferences from "./pages/Preferences";
+import Feed from "./pages/Feed";
+import Community from "./pages/Community";
+import Create from "./pages/Create";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +23,9 @@ const App = () => (
           <Route path="/" element={<Onboarding />} />
           <Route path="/topics" element={<Topics />} />
           <Route path="/preferences" element={<Preferences />} />
+          <Route path="/feed" element={<Feed />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/create" element={<Create />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -108,18 +108,21 @@ const Preferences = () => {
         </div>
 
         {/* TikTok Import Card */}
-        <div className="mt-12 rounded-xl border border-border glass-card p-4 hover:border-primary/50 transition-smooth cursor-pointer">
+        <div 
+          onClick={() => navigate("/feed")}
+          className="mt-12 rounded-xl border border-border glass-card p-4 hover:border-primary/50 transition-smooth cursor-pointer"
+        >
           <div className="flex items-center gap-4">
-            <div className="flex size-12 items-center justify-center rounded-lg bg-foreground">
+            <div className="flex size-12 items-center justify-center rounded-lg bg-foreground shrink-0">
               <svg className="w-7 h-7 text-background" fill="currentColor" viewBox="0 0 448 512">
                 <path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z" />
               </svg>
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-foreground">Bring your content with you</p>
-              <p className="text-sm text-muted-foreground">Import your TikTok drafts to Loomi.</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground text-sm sm:text-base">Bring your content with you</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Import your TikTok drafts to Loomi.</p>
             </div>
-            <button className="flex items-center justify-center size-10 rounded-full text-muted-foreground hover:bg-muted transition-smooth">
+            <button className="flex items-center justify-center size-10 rounded-full text-muted-foreground hover:bg-muted transition-smooth shrink-0">
               <ChevronRight className="h-6 w-6" />
             </button>
           </div>
@@ -128,11 +131,19 @@ const Preferences = () => {
 
       {/* Bottom Actions */}
       <footer className="fixed bottom-0 left-0 right-0 glass backdrop-blur-sm p-4 border-t border-border">
-        <div className="flex flex-col items-center gap-4">
-          <Button variant="default" className="w-full h-12">
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 max-w-md mx-auto">
+          <Button 
+            onClick={() => navigate("/feed")}
+            variant="default" 
+            className="w-full h-12 text-sm sm:text-base"
+          >
             Continue
           </Button>
-          <Button variant="ghost" className="w-full h-12">
+          <Button 
+            onClick={() => navigate("/feed")}
+            variant="ghost" 
+            className="w-full h-12 text-sm sm:text-base"
+          >
             Skip for now
           </Button>
         </div>
