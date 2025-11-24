@@ -141,11 +141,17 @@ const Feed = () => {
         >
           <Plus className="w-8 h-8" />
         </button>
-        <button className="flex flex-col items-center gap-1 hover:text-white transition-smooth">
+        <button 
+          onClick={() => navigate("/inbox")}
+          className="flex flex-col items-center gap-1 hover:text-white transition-smooth"
+        >
           <Inbox className="w-7 h-7" />
           <p className="text-xs font-medium">Inbox</p>
         </button>
-        <button className="flex flex-col items-center gap-1 hover:text-white transition-smooth">
+        <button 
+          onClick={() => navigate("/profile")}
+          className="flex flex-col items-center gap-1 hover:text-white transition-smooth"
+        >
           <User className="w-7 h-7" />
           <p className="text-xs font-medium">Profile</p>
         </button>
