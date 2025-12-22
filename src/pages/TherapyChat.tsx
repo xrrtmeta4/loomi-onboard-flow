@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Mic, MicOff, Plus, Menu, X, Trash2 } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import WellnessTools from "@/components/WellnessTools";
 
 interface Message {
   id: string;
@@ -31,6 +32,7 @@ const TherapyChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [wellnessToolsOpen, setWellnessToolsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -292,6 +294,14 @@ const TherapyChat = () => {
     navigate("/");
   };
 
+  const handleMeditationSelect = async (prompt: string) => {
+    if (!currentSessionId) {
+      await createNewSession();
+    }
+    setInput("");
+    await streamChat(prompt);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -322,10 +332,21 @@ const TherapyChat = () => {
             </Button>
           </div>
 
-          <div className="p-4">
+          <div className="p-4 space-y-2">
             <Button onClick={createNewSession} className="w-full" variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               New Session
+            </Button>
+            <Button
+              onClick={() => {
+                setSidebarOpen(false);
+                setWellnessToolsOpen(true);
+              }}
+              className="w-full"
+              variant="secondary"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Wellness Tools
             </Button>
           </div>
 
@@ -384,11 +405,20 @@ const TherapyChat = () => {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h2 className="font-medium truncate">
+          <h2 className="font-medium truncate flex-1">
             {currentSessionId
               ? sessions.find((s) => s.id === currentSessionId)?.title || "Chat"
               : "Start a new conversation"}
           </h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setWellnessToolsOpen(true)}
+            className="hidden lg:flex gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Wellness Tools
+          </Button>
         </header>
 
         {/* Messages */}
@@ -500,6 +530,12 @@ const TherapyChat = () => {
           </p>
         </div>
       </div>
+
+      <WellnessTools
+        isOpen={wellnessToolsOpen}
+        onClose={() => setWellnessToolsOpen(false)}
+        onSelectMeditation={handleMeditationSelect}
+      />
     </div>
   );
 };
