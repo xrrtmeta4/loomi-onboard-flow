@@ -338,38 +338,79 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          chat_background: string | null
           created_at: string | null
           display_name: string | null
           follower_count: number | null
           following_count: number | null
           id: string
           is_verified: boolean | null
+          selected_psychologist_id: string | null
           updated_at: string | null
           username: string
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          chat_background?: string | null
           created_at?: string | null
           display_name?: string | null
           follower_count?: number | null
           following_count?: number | null
           id: string
           is_verified?: boolean | null
+          selected_psychologist_id?: string | null
           updated_at?: string | null
           username: string
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          chat_background?: string | null
           created_at?: string | null
           display_name?: string | null
           follower_count?: number | null
           following_count?: number | null
           id?: string
           is_verified?: boolean | null
+          selected_psychologist_id?: string | null
           updated_at?: string | null
           username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_selected_psychologist_id_fkey"
+            columns: ["selected_psychologist_id"]
+            isOneToOne: false
+            referencedRelation: "psychologists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      psychologists: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          id: string
+          name: string
+          specialty: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          specialty: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          specialty?: string
         }
         Relationships: []
       }

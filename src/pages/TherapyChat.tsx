@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2, Settings, User, CreditCard, Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WellnessTools from "@/components/WellnessTools";
 import {
@@ -15,6 +16,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Message {
   id: string;
@@ -36,10 +48,34 @@ interface MessageLimit {
   limit: number;
 }
 
+interface Profile {
+  avatar_url: string | null;
+  display_name: string | null;
+  chat_background: string | null;
+  selected_psychologist_id: string | null;
+}
+
+interface Psychologist {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+}
+
+const BACKGROUND_CLASSES: Record<string, string> = {
+  default: "bg-background",
+  forest: "bg-gradient-to-br from-green-900/20 to-emerald-800/20",
+  ocean: "bg-gradient-to-br from-blue-900/20 to-cyan-800/20",
+  sunset: "bg-gradient-to-br from-orange-900/20 to-pink-800/20",
+  mountains: "bg-gradient-to-br from-slate-900/20 to-stone-800/20",
+  meadow: "bg-gradient-to-br from-lime-900/20 to-green-800/20",
+};
+
 const TherapyChat = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [selectedPsychologist, setSelectedPsychologist] = useState<Psychologist | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -62,9 +98,35 @@ const TherapyChat = () => {
       }
       setUser(session.user);
       loadSessions(session.user.id);
+      loadProfile(session.user.id);
       checkMessageLimit();
     });
   }, [navigate]);
+
+  const loadProfile = async (userId: string) => {
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("avatar_url, display_name, chat_background, selected_psychologist_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileData) {
+      setProfile(profileData);
+
+      // Load selected psychologist if any
+      if (profileData.selected_psychologist_id) {
+        const { data: psychData } = await supabase
+          .from("psychologists")
+          .select("id, name, avatar_url")
+          .eq("id", profileData.selected_psychologist_id)
+          .maybeSingle();
+
+        if (psychData) {
+          setSelectedPsychologist(psychData);
+        }
+      }
+    }
+  };
 
   const checkMessageLimit = async () => {
     try {
@@ -234,6 +296,23 @@ const TherapyChat = () => {
       setCurrentSessionId(null);
       setMessages([]);
     }
+  };
+
+  const clearConversation = async () => {
+    if (!currentSessionId) return;
+
+    const { error } = await supabase
+      .from("therapy_messages")
+      .delete()
+      .eq("session_id", currentSessionId);
+
+    if (error) {
+      toast({ title: "Error clearing conversation", variant: "destructive" });
+      return;
+    }
+
+    setMessages([]);
+    toast({ title: "Conversation cleared" });
   };
 
   const scrollToBottom = () => {
@@ -429,8 +508,10 @@ const TherapyChat = () => {
     );
   }
 
+  const chatBackground = profile?.chat_background || "default";
+
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className={cn("min-h-screen flex", BACKGROUND_CLASSES[chatBackground] || BACKGROUND_CLASSES.default)}>
       {/* Sidebar */}
       <div
         className={cn(
@@ -496,7 +577,23 @@ const TherapyChat = () => {
             </div>
           </ScrollArea>
 
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border space-y-1">
+            <Button 
+              variant="ghost" 
+              onClick={() => { setSidebarOpen(false); navigate("/profile"); }} 
+              className="w-full justify-start"
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => { setSidebarOpen(false); navigate("/subscription"); }} 
+              className="w-full justify-start"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Subscription
+            </Button>
             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start">
               Sign Out
             </Button>
@@ -529,6 +626,28 @@ const TherapyChat = () => {
               ? sessions.find((s) => s.id === currentSessionId)?.title || "Chat"
               : "Start a new conversation"}
           </h2>
+          {currentSessionId && messages.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Eraser className="h-4 w-4" />
+                  <span className="hidden sm:inline">Clear</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear Conversation?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will delete all messages in this session. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearConversation}>Clear</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -565,9 +684,12 @@ const TherapyChat = () => {
                 )}
               >
                 {message.role === "assistant" && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm">🧠</span>
-                  </div>
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage src={selectedPsychologist?.avatar_url || ""} />
+                    <AvatarFallback className="bg-primary/10">
+                      <span className="text-sm">🧠</span>
+                    </AvatarFallback>
+                  </Avatar>
                 )}
                 <div
                   className={cn(
@@ -584,9 +706,12 @@ const TherapyChat = () => {
 
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-4 justify-start">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm">🧠</span>
-                </div>
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  <AvatarImage src={selectedPsychologist?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary/10">
+                    <span className="text-sm">🧠</span>
+                  </AvatarFallback>
+                </Avatar>
                 <div className="bg-muted rounded-2xl px-4 py-3">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 bg-foreground/50 rounded-full animate-bounce" />
