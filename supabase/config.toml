@@ -2,3 +2,15 @@ project_id = "lxbjdduxtksalwxxgxgt"
 
 [functions.therapy-chat]
 verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.dodo-webhook]
+verify_jwt = false
+
+[functions.check-message-limit]
+verify_jwt = false
+
+[functions.increment-message-count]
+verify_jwt = false
