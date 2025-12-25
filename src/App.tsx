@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import Onboarding from "./pages/Onboarding";
 import TherapyChat from "./pages/TherapyChat";
 import Auth from "./pages/Auth";
+import ProfileSettings from "./pages/ProfileSettings";
+import SubscriptionManagement from "./pages/SubscriptionManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +59,14 @@ const AppRoutes = () => {
       <Route
         path="/chat"
         element={user ? <TherapyChat /> : <Navigate to="/" replace />}
+      />
+      <Route
+        path="/profile"
+        element={user ? <ProfileSettings /> : <Navigate to="/" replace />}
+      />
+      <Route
+        path="/subscription"
+        element={user ? <SubscriptionManagement /> : <Navigate to="/" replace />}
       />
 
       {/* 404 */}
