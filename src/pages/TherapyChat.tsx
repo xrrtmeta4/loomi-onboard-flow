@@ -5,9 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WellnessTools from "@/components/WellnessTools";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Message {
   id: string;
@@ -19,6 +26,14 @@ interface Session {
   id: string;
   title: string;
   created_at: string;
+}
+
+interface MessageLimit {
+  canSend: boolean;
+  isPremium: boolean;
+  messagesUsed: number;
+  messagesRemaining: number;
+  limit: number;
 }
 
 const TherapyChat = () => {
@@ -33,6 +48,9 @@ const TherapyChat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [wellnessToolsOpen, setWellnessToolsOpen] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [messageLimit, setMessageLimit] = useState<MessageLimit | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -44,8 +62,98 @@ const TherapyChat = () => {
       }
       setUser(session.user);
       loadSessions(session.user.id);
+      checkMessageLimit();
     });
   }, [navigate]);
+
+  const checkMessageLimit = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/check-message-limit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessageLimit(data);
+      }
+    } catch (error) {
+      console.error("Error checking message limit:", error);
+    }
+  };
+
+  const incrementMessageCount = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/increment-message-count`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      // Refresh the limit
+      await checkMessageLimit();
+    } catch (error) {
+      console.error("Error incrementing message count:", error);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!user) return;
+    setIsCheckingOut(true);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            email: user.email,
+            returnUrl: window.location.href,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to create checkout session");
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingOut(false);
+    }
+  };
 
   const loadSessions = async (userId: string) => {
     const { data, error } = await supabase
@@ -269,8 +377,19 @@ const TherapyChat = () => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    // Check message limit for free users
+    if (messageLimit && !messageLimit.isPremium && !messageLimit.canSend) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+
     if (!currentSessionId) {
       await createNewSession();
+    }
+
+    // Increment message count for free users
+    if (messageLimit && !messageLimit.isPremium) {
+      await incrementMessageCount();
     }
 
     const message = input.trim();
@@ -525,7 +644,12 @@ const TherapyChat = () => {
               </div>
             </div>
           </form>
-          <p className="text-xs text-muted-foreground text-center mt-2">
+          {messageLimit && !messageLimit.isPremium && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {messageLimit.messagesRemaining} of {messageLimit.limit} free messages remaining today
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground text-center mt-1">
             Loomi is an AI companion. For serious concerns, please consult a professional.
           </p>
         </div>
@@ -536,6 +660,56 @@ const TherapyChat = () => {
         onClose={() => setWellnessToolsOpen(false)}
         onSelectMeditation={handleMeditationSelect}
       />
+
+      {/* Upgrade Dialog */}
+      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-yellow-500" />
+              Upgrade to Premium
+            </DialogTitle>
+            <DialogDescription>
+              You've used all 5 free messages for today. Upgrade to Premium for unlimited conversations with Loomi.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4">
+              <h4 className="font-semibold text-lg">Premium Plan</h4>
+              <p className="text-3xl font-bold mt-2">$6<span className="text-base font-normal text-muted-foreground">/month</span></p>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> Unlimited daily messages
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> Priority AI responses
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> All wellness tools included
+                </li>
+              </ul>
+            </div>
+            <Button 
+              onClick={handleUpgrade} 
+              className="w-full" 
+              size="lg"
+              disabled={isCheckingOut}
+            >
+              {isCheckingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Crown className="h-4 w-4 mr-2" />
+                  Upgrade Now
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
