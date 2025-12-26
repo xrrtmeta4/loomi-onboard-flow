@@ -47,7 +47,18 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Dodo API error:", response.status, errorText);
-      throw new Error(`Dodo API error: ${response.status}`);
+      
+      // Return a more user-friendly error for network issues
+      if (response.status === 0 || !response.status) {
+        return new Response(JSON.stringify({ 
+          error: "Payment service temporarily unavailable. Please try again later." 
+        }), {
+          status: 503,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      throw new Error(`Payment error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -58,8 +69,17 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Checkout error:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
-      status: 500,
+    
+    // Handle network errors gracefully
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isNetworkError = errorMessage.includes("dns") || errorMessage.includes("network") || errorMessage.includes("fetch");
+    
+    return new Response(JSON.stringify({ 
+      error: isNetworkError 
+        ? "Payment service temporarily unavailable. Please try again later."
+        : errorMessage 
+    }), {
+      status: isNetworkError ? 503 : 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
