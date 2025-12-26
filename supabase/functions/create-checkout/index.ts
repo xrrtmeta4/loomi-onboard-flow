@@ -5,6 +5,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Dodo Payments API URLs - use live.dodopayments.com for production
+const DODO_API_URL = "https://live.dodopayments.com";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,7 +24,7 @@ serve(async (req) => {
     console.log("Creating checkout session for user:", userId);
 
     // Create checkout session with Dodo Payments
-    const response = await fetch("https://api.dodopayments.com/checkout_sessions", {
+    const response = await fetch(`${DODO_API_URL}/checkout_sessions`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${DODO_API_KEY}`,
@@ -48,17 +51,12 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("Dodo API error:", response.status, errorText);
       
-      // Return a more user-friendly error for network issues
-      if (response.status === 0 || !response.status) {
-        return new Response(JSON.stringify({ 
-          error: "Payment service temporarily unavailable. Please try again later." 
-        }), {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      throw new Error(`Payment error: ${response.status}`);
+      return new Response(JSON.stringify({ 
+        error: `Payment error: ${response.status}` 
+      }), {
+        status: response.status >= 500 ? 503 : response.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();
@@ -70,7 +68,6 @@ serve(async (req) => {
   } catch (error) {
     console.error("Checkout error:", error);
     
-    // Handle network errors gracefully
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isNetworkError = errorMessage.includes("dns") || errorMessage.includes("network") || errorMessage.includes("fetch");
     
