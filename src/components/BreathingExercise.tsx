@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface BreathingExerciseProps {
   isOpen: boolean;
   onClose: () => void;
-  exerciseType?: "box" | "478" | "relaxing";
+  exerciseType?: "box" | "478" | "relaxing" | "energizing";
 }
 
 const exercises = {
@@ -40,6 +40,15 @@ const exercises = {
       { name: "Exhale", duration: 6 },
     ],
     cycles: 5,
+  },
+  energizing: {
+    name: "Energizing Breath",
+    description: "Quick, rhythmic breaths to boost energy and alertness",
+    phases: [
+      { name: "Inhale", duration: 2 },
+      { name: "Exhale", duration: 2 },
+    ],
+    cycles: 10,
   },
 };
 
