@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2, Settings, User, CreditCard, Eraser, Users } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Settings, User, CreditCard, Eraser, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WellnessTools from "@/components/WellnessTools";
 import {
@@ -65,11 +65,20 @@ interface Psychologist {
 
 const BACKGROUND_CLASSES: Record<string, string> = {
   default: "bg-background",
-  forest: "bg-gradient-to-br from-green-900/20 to-emerald-800/20",
-  ocean: "bg-gradient-to-br from-blue-900/20 to-cyan-800/20",
-  sunset: "bg-gradient-to-br from-orange-900/20 to-pink-800/20",
-  mountains: "bg-gradient-to-br from-slate-900/20 to-stone-800/20",
-  meadow: "bg-gradient-to-br from-lime-900/20 to-green-800/20",
+  forest: "",
+  ocean: "",
+  sunset: "",
+  mountains: "",
+  meadow: "",
+};
+
+const BACKGROUND_IMAGES: Record<string, string> = {
+  default: "",
+  forest: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80",
+  ocean: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+  sunset: "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80",
+  mountains: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80",
+  meadow: "https://images.unsplash.com/photo-1500534623283-312aade485b7?w=1920&q=80",
 };
 
 const TherapyChat = () => {
@@ -90,7 +99,6 @@ const TherapyChat = () => {
   const [wellnessToolsOpen, setWellnessToolsOpen] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [messageLimit, setMessageLimit] = useState<MessageLimit | null>(null);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -210,45 +218,11 @@ const TherapyChat = () => {
     }
   };
 
-  const handleUpgrade = async () => {
-    if (!user) return;
-    setIsCheckingOut(true);
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            userId: user.id,
-            email: user.email,
-            returnUrl: window.location.href,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to create checkout session");
-      }
-
-      const { url } = await response.json();
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to start checkout. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCheckingOut(false);
-    }
+  const handleUpgrade = () => {
+    // Direct link to Dodo Payments checkout
+    const checkoutUrl = `https://checkout.dodopayments.com/buy/pdt_0NUq7VsjGs5CmcJ6s1wlO?quantity=1&redirect_url=https://loomisz.vercel.app`;
+    window.open(checkoutUrl, "_blank");
+    setShowUpgradeDialog(false);
   };
 
   const loadSessions = async (userId: string) => {
@@ -335,18 +309,33 @@ const TherapyChat = () => {
   const clearConversation = async () => {
     if (!currentSessionId) return;
 
-    const { error } = await supabase
+    // Delete messages first
+    const { error: messagesError } = await supabase
       .from("therapy_messages")
       .delete()
       .eq("session_id", currentSessionId);
 
-    if (error) {
+    if (messagesError) {
       toast({ title: "Error clearing conversation", variant: "destructive" });
       return;
     }
 
+    // Then delete the session itself (permanent deletion)
+    const { error: sessionError } = await supabase
+      .from("therapy_sessions")
+      .delete()
+      .eq("id", currentSessionId);
+
+    if (sessionError) {
+      toast({ title: "Error deleting session", variant: "destructive" });
+      return;
+    }
+
+    // Update local state
+    setSessions((prev) => prev.filter((s) => s.id !== currentSessionId));
+    setCurrentSessionId(null);
     setMessages([]);
-    toast({ title: "Conversation cleared" });
+    toast({ title: "Conversation permanently deleted" });
   };
 
   const scrollToBottom = () => {
@@ -543,9 +532,22 @@ const TherapyChat = () => {
   }
 
   const chatBackground = profile?.chat_background || "default";
+  const backgroundImage = BACKGROUND_IMAGES[chatBackground];
 
   return (
-    <div className={cn("min-h-screen flex", BACKGROUND_CLASSES[chatBackground] || BACKGROUND_CLASSES.default)}>
+    <div 
+      className={cn("min-h-screen flex relative", !backgroundImage && (BACKGROUND_CLASSES[chatBackground] || BACKGROUND_CLASSES.default))}
+      style={backgroundImage ? { 
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      } : undefined}
+    >
+      {/* Background overlay for readability */}
+      {backgroundImage && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px]" />
+      )}
       {/* Sidebar */}
       <div
         className={cn(
@@ -655,7 +657,7 @@ const TherapyChat = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen relative z-10">
         {/* Header */}
         <header className="h-14 border-b border-border flex items-center px-4 gap-4">
           <Button
@@ -837,6 +839,11 @@ const TherapyChat = () => {
         isOpen={wellnessToolsOpen}
         onClose={() => setWellnessToolsOpen(false)}
         onSelectMeditation={handleMeditationSelect}
+        isPremium={messageLimit?.isPremium || false}
+        onUpgrade={() => {
+          setWellnessToolsOpen(false);
+          setShowUpgradeDialog(true);
+        }}
       />
 
       {/* Upgrade Dialog */}
@@ -871,19 +878,9 @@ const TherapyChat = () => {
               onClick={handleUpgrade} 
               className="w-full" 
               size="lg"
-              disabled={isCheckingOut}
             >
-              {isCheckingOut ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Crown className="h-4 w-4 mr-2" />
-                  Upgrade Now
-                </>
-              )}
+              <Crown className="h-4 w-4 mr-2" />
+              Upgrade Now
             </Button>
           </div>
         </DialogContent>
