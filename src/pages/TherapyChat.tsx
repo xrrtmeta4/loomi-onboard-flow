@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2, Settings, User, CreditCard, Eraser } from "lucide-react";
+import { Send, Mic, MicOff, Plus, Menu, X, Trash2, Sparkles, Crown, Loader2, Settings, User, CreditCard, Eraser, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import WellnessTools from "@/components/WellnessTools";
 import {
@@ -58,7 +58,9 @@ interface Profile {
 interface Psychologist {
   id: string;
   name: string;
+  specialty: string;
   avatar_url: string | null;
+  bio: string | null;
 }
 
 const BACKGROUND_CLASSES: Record<string, string> = {
@@ -76,6 +78,8 @@ const TherapyChat = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [selectedPsychologist, setSelectedPsychologist] = useState<Psychologist | null>(null);
+  const [psychologists, setPsychologists] = useState<Psychologist[]>([]);
+  const [showPsychologistPicker, setShowPsychologistPicker] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -99,9 +103,21 @@ const TherapyChat = () => {
       setUser(session.user);
       loadSessions(session.user.id);
       loadProfile(session.user.id);
+      loadPsychologists();
       checkMessageLimit();
     });
   }, [navigate]);
+
+  const loadPsychologists = async () => {
+    const { data } = await supabase
+      .from("psychologists")
+      .select("id, name, specialty, avatar_url, bio")
+      .order("name");
+    
+    if (data) {
+      setPsychologists(data);
+    }
+  };
 
   const loadProfile = async (userId: string) => {
     const { data: profileData } = await supabase
@@ -117,7 +133,7 @@ const TherapyChat = () => {
       if (profileData.selected_psychologist_id) {
         const { data: psychData } = await supabase
           .from("psychologists")
-          .select("id, name, avatar_url")
+          .select("id, name, specialty, avatar_url, bio")
           .eq("id", profileData.selected_psychologist_id)
           .maybeSingle();
 
@@ -126,6 +142,24 @@ const TherapyChat = () => {
         }
       }
     }
+  };
+
+  const selectPsychologist = async (psychologist: Psychologist) => {
+    if (!user) return;
+    
+    setSelectedPsychologist(psychologist);
+    setShowPsychologistPicker(false);
+    
+    // Update profile
+    await supabase
+      .from("profiles")
+      .update({ selected_psychologist_id: psychologist.id })
+      .eq("id", user.id);
+
+    // Create new session with this psychologist
+    await createNewSession();
+    
+    toast({ title: `Now chatting with ${psychologist.name}` });
   };
 
   const checkMessageLimit = async () => {
@@ -540,6 +574,17 @@ const TherapyChat = () => {
             <Button
               onClick={() => {
                 setSidebarOpen(false);
+                setShowPsychologistPicker(true);
+              }}
+              className="w-full"
+              variant="outline"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Change Therapist
+            </Button>
+            <Button
+              onClick={() => {
+                setSidebarOpen(false);
                 setWellnessToolsOpen(true);
               }}
               className="w-full"
@@ -679,7 +724,7 @@ const TherapyChat = () => {
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-4",
+                  "flex gap-3",
                   message.role === "user" ? "justify-end" : "justify-start"
                 )}
               >
@@ -701,6 +746,14 @@ const TherapyChat = () => {
                 >
                   <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
+                {message.role === "user" && (
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage src={profile?.avatar_url || ""} />
+                    <AvatarFallback className="bg-secondary">
+                      <User className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             ))}
 
@@ -832,6 +885,47 @@ const TherapyChat = () => {
                 </>
               )}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Psychologist Picker Dialog */}
+      <Dialog open={showPsychologistPicker} onOpenChange={setShowPsychologistPicker}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Choose Your Therapist
+            </DialogTitle>
+            <DialogDescription>
+              Select a therapist to start a new conversation with. Each therapist has their own specialty and approach.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-4">
+            {psychologists.map((psych) => (
+              <div
+                key={psych.id}
+                onClick={() => selectPsychologist(psych)}
+                className={cn(
+                  "flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted",
+                  selectedPsychologist?.id === psych.id && "border-primary bg-primary/5"
+                )}
+              >
+                <Avatar className="h-12 w-12 flex-shrink-0">
+                  <AvatarImage src={psych.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary/10 text-lg">
+                    {psych.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold">{psych.name}</h4>
+                  <p className="text-sm text-primary">{psych.specialty}</p>
+                  {psych.bio && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{psych.bio}</p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
